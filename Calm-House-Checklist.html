@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Our Calm House — A Healthy-Home Checklist for David &amp; Fayth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f4efe4;
+    --paper-2:#ece4d2;
+    --card:#fdfaf3;
+    --card-done:#eeebe0;
+    --ink:#241f1a;
+    --ink-soft:#574d3f;
+    --ink-faint:#7d7363;
+    --line:#d8cdb8;
+    --line-soft:#e6ddca;
+    --sage:#6f8254;
+    --sage-deep:#4a5a33;
+    --clay:#b0653b;
+    --clay-deep:#8c4c28;
+    --gold:#bf8d2c;
+    --gold-deep:#946d1c;
+    --stone:#71808c;
+    --stone-deep:#566570;
+    --teal:#5a857c;
+    --shadow: 0 1px 2px rgba(52,48,42,.04), 0 8px 24px -12px rgba(52,48,42,.18);
+    --shadow-soft: 0 1px 2px rgba(52,48,42,.03), 0 2px 10px -6px rgba(52,48,42,.12);
+    --radius:18px;
+    --radius-sm:12px;
+    --max:880px;
+  }
+
+  /* ---------- night mode: dim, warm, low-blue, sleep-friendly ---------- */
+  html[data-theme="night"]{
+    --paper:#14110d;
+    --paper-2:#1d1812;
+    --card:#201a13;
+    --card-done:#181308;
+    --ink:#e7d7b5;
+    --ink-soft:#bcab8a;
+    --ink-faint:#8d8067;
+    --line:#352c20;
+    --line-soft:#282116;
+    --sage:#92a271;
+    --sage-deep:#aaba88;
+    --clay:#d2956a;
+    --clay-deep:#bd7c52;
+    --gold:#cea953;
+    --gold-deep:#b59446;
+    --stone:#9a948a;
+    --stone-deep:#aaa49a;
+    --teal:#7fa79e;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px -12px rgba(0,0,0,.6);
+    --shadow-soft: 0 1px 2px rgba(0,0,0,.3), 0 2px 10px -6px rgba(0,0,0,.45);
+  }
+  html[data-theme="night"] .topbar{ background:rgba(20,17,13,.86); }
+  html[data-theme="night"] .controls{ background:rgba(32,26,19,.72); }
+  html[data-theme="night"] .check{ border-color:#4a4032; }
+  html[data-theme="night"] body::before{
+    background:
+      radial-gradient(120% 90% at 78% -8%, rgba(120,86,40,.16), rgba(120,86,40,0) 46%),
+      radial-gradient(90% 70% at 10% 4%, rgba(70,80,55,.10), rgba(70,80,55,0) 50%);
+  }
+  html[data-theme="night"] body::after{ opacity:.35; }
+
+  /* theme toggle button (day ↔ night) */
+  .theme-toggle{
+    flex:none; width:36px; height:36px; border-radius:50%;
+    border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    font-size:1rem; line-height:1; transition:.25s; box-shadow:var(--shadow-soft);
+  }
+  .theme-toggle:hover{ color:var(--clay-deep); border-color:var(--clay); transform:translateY(-1px); }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:"Manrope", system-ui, -apple-system, sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  /* soft paper grain + warm morning-light glow */
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 78% -8%, rgba(231,196,128,.30), rgba(231,196,128,0) 46%),
+      radial-gradient(90% 70% at 10% 4%, rgba(150,168,128,.16), rgba(150,168,128,0) 50%);
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+
+  .wrap{position:relative; z-index:1; max-width:var(--max); margin:0 auto; padding:0 22px;}
+
+  /* ---------- sticky progress bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    backdrop-filter:saturate(135%) blur(10px);
+    -webkit-backdrop-filter:saturate(135%) blur(10px);
+    background:rgba(244,239,228,.82);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-inner{
+    max-width:var(--max); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .topbar .mark{
+    font-family:"Fraunces", serif; font-weight:500; font-size:.98rem;
+    letter-spacing:.2px; white-space:nowrap; color:var(--ink);
+  }
+  .topbar .mark span{color:var(--clay);}
+  .pbar{position:relative; flex:1; height:8px; border-radius:99px; background:var(--line); overflow:hidden;}
+  .pbar > i{
+    position:absolute; inset:0 auto 0 0; width:0%;
+    border-radius:99px;
+    background:linear-gradient(90deg, var(--sage), var(--teal) 70%, var(--gold));
+    transition:width .6s cubic-bezier(.22,.61,.36,1);
+  }
+  .pcount{font-variant-numeric:tabular-nums; font-weight:600; font-size:.9rem; color:var(--sage-deep); white-space:nowrap; min-width:84px; text-align:right;}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:64px 0 30px; text-align:center;}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:9px;
+    font-size:.72rem; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; margin-bottom:22px;
+  }
+  .eyebrow::before,.eyebrow::after{content:""; width:26px; height:1px; background:var(--line);}
+  h1{
+    font-family:"Fraunces", serif; font-weight:400;
+    font-size:clamp(2.3rem, 6.2vw, 3.7rem);
+    line-height:1.04; letter-spacing:-.01em; margin:0 0 18px;
+  }
+  h1 em{font-style:italic; color:var(--clay);}
+  .lede{
+    max-width:560px; margin:0 auto; color:var(--ink-soft);
+    font-size:clamp(1rem,2.4vw,1.12rem);
+  }
+  .locs{
+    display:inline-flex; gap:10px; margin-top:26px; flex-wrap:wrap; justify-content:center;
+  }
+  .loc-pill{
+    display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;
+    padding:9px 16px; border-radius:20px; background:var(--card);
+    border:1px solid var(--line); box-shadow:var(--shadow-soft);
+    font-size:.86rem; font-weight:500; color:var(--ink);
+    text-decoration:none; transition:transform .25s, box-shadow .25s, border-color .25s;
+  }
+  a.loc-pill:hover{transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--clay);}
+  .loc-pill b{font-weight:700;}
+  .pill-lot{
+    flex-basis:100%; text-align:center; margin-top:3px;
+    font-size:.74rem; font-weight:700; color:var(--clay-deep);
+  }
+  a.loc-pill:hover .pill-lot{color:var(--clay);}
+  .dot{width:8px; height:8px; border-radius:99px; display:inline-block;}
+  .dot.nuvali{background:var(--sage);}
+  .dot.baguio{background:var(--clay);}
+
+  /* ---------- controls ---------- */
+  .controls{
+    position:sticky; top:52px; z-index:20;
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    margin:30px 0 8px; padding:10px;
+    background:rgba(251,248,241,.7);
+    border:1px solid var(--line); border-radius:99px;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    flex-wrap:wrap;
+  }
+  .seg{display:inline-flex; background:var(--paper-2); border-radius:99px; padding:4px;}
+  .seg button{
+    border:0; background:transparent; cursor:pointer;
+    font-family:inherit; font-size:.84rem; font-weight:600; color:var(--ink-soft);
+    padding:7px 16px; border-radius:99px; transition:.25s; letter-spacing:.01em;
+  }
+  .seg button.active{background:var(--card); color:var(--ink); box-shadow:var(--shadow-soft);}
+  .reset{
+    border:1px solid var(--line); background:var(--card); cursor:pointer;
+    font-family:inherit; font-size:.82rem; font-weight:600; color:var(--ink-soft);
+    padding:8px 15px; border-radius:99px; transition:.25s; display:inline-flex; align-items:center; gap:7px;
+  }
+  .reset:hover{color:var(--clay-deep); border-color:var(--clay);}
+  .ctl-right{display:inline-flex; gap:10px; align-items:center;}
+  .view3d{
+    border:1px solid var(--clay-deep); background:var(--clay); color:#fff; cursor:pointer;
+    font-family:inherit; font-size:.82rem; font-weight:700; padding:8px 15px; border-radius:99px;
+    transition:.25s; display:inline-flex; align-items:center; gap:7px; text-decoration:none; white-space:nowrap;
+    box-shadow:var(--shadow-soft);
+  }
+  .view3d:hover{background:var(--clay-deep);}
+
+  /* ---------- sections ---------- */
+  section.group{margin:38px 0;}
+  .group-head{
+    display:flex; align-items:center; gap:14px; margin:0 4px 16px;
+  }
+  .group-ic{
+    flex:none; width:42px; height:42px; border-radius:13px;
+    display:grid; place-items:center; background:var(--card);
+    border:1px solid var(--line); box-shadow:var(--shadow-soft);
+  }
+  .group-ic svg{width:21px; height:21px; stroke-width:1.6; fill:none; stroke:var(--accent,#7f8f6a);}
+  .group-head h2{
+    font-family:"Fraunces", serif; font-weight:500; font-size:1.32rem; margin:0; letter-spacing:-.01em; flex:1;
+  }
+  .group-prog{
+    font-size:.78rem; font-weight:600; color:var(--ink-faint);
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+    padding:4px 11px; border-radius:99px; background:var(--card); border:1px solid var(--line);
+  }
+
+  /* ---------- items ---------- */
+  .item{
+    position:relative; display:flex; gap:16px; align-items:flex-start;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius); padding:18px 20px 18px 18px; margin-bottom:12px;
+    box-shadow:var(--shadow-soft); cursor:pointer;
+    transition:transform .35s cubic-bezier(.22,.61,.36,1), box-shadow .35s, background .4s, border-color .4s, opacity .5s;
+    /* reveal */
+    opacity:0; transform:translateY(14px);
+  }
+  .item.in{opacity:1; transform:none;}
+  .item:hover{box-shadow:var(--shadow); transform:translateY(-2px);}
+  .item::before{
+    content:""; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:99px;
+    background:var(--accent,#7f8f6a); opacity:0; transition:opacity .4s;
+  }
+  .item.done{background:var(--card-done); border-color:var(--line-soft);}
+  .item.done::before{opacity:.55;}
+  .item.done .it-title{color:var(--ink-soft);}
+  .item.done .why,.item.done .loc{opacity:.62;}
+
+  /* custom check */
+  .check{
+    flex:none; margin-top:1px; width:28px; height:28px; border-radius:9px;
+    border:1.7px solid #c8c0ad; background:transparent; cursor:pointer; padding:0;
+    display:grid; place-items:center; transition:.3s; position:relative;
+  }
+  .item:hover .check{border-color:var(--accent,#7f8f6a);}
+  .check svg{width:17px; height:17px; fill:none; stroke:#fff; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
+  .check svg path{stroke-dasharray:26; stroke-dashoffset:26; transition:stroke-dashoffset .35s ease .05s;}
+  .item.done .check{background:var(--accent,#7f8f6a); border-color:var(--accent,#7f8f6a);}
+  .item.done .check svg path{stroke-dashoffset:0;}
+
+  .body{flex:1; min-width:0;}
+  .it-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:5px;}
+  .it-title{
+    font-family:"Fraunces", serif; font-weight:500; font-size:1.07rem;
+    margin:0; letter-spacing:-.005em; transition:color .3s; line-height:1.25;
+  }
+  .star{color:var(--gold-deep); font-size:.74rem; font-weight:700; letter-spacing:.05em; white-space:nowrap;}
+  .why{margin:0; color:var(--ink-soft); font-size:.945rem; transition:opacity .4s;}
+
+  .loc{display:flex; gap:10px; margin-top:13px; flex-wrap:wrap; transition:opacity .4s;}
+  .loc .chip{
+    flex:1 1 210px; min-width:0; display:flex; gap:9px; align-items:flex-start;
+    background:var(--paper); border:1px solid var(--line-soft); border-radius:var(--radius-sm);
+    padding:9px 12px; font-size:.85rem; color:var(--ink-soft);
+  }
+  .loc .chip b{display:block; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px;}
+  .loc .chip.n b{color:var(--sage-deep);}
+  .loc .chip.b b{color:var(--clay-deep);}
+
+  /* legend + footer */
+  .legend{
+    margin:6px 4px 0; display:flex; gap:18px; flex-wrap:wrap;
+    font-size:.78rem; color:var(--ink-faint);
+  }
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .legend i{width:11px; height:11px; border-radius:4px; display:inline-block;}
+
+  footer{
+    margin:54px 0 70px; padding-top:26px; border-top:1px solid var(--line);
+    color:var(--ink-faint); font-size:.82rem;
+  }
+  footer h3{font-family:"Fraunces", serif; font-weight:500; color:var(--ink-soft); font-size:1rem; margin:0 0 10px;}
+  .src{margin:6px 0;}
+
+  .empty{
+    text-align:center; padding:40px 20px; color:var(--ink-faint);
+    font-family:"Fraunces", serif; font-style:italic; font-size:1.05rem; display:none;
+  }
+
+  @media (max-width:560px){
+    .topbar .mark{display:none;}
+    header.hero{padding:46px 0 22px;}
+    .controls{top:50px; flex-direction:column; align-items:stretch; gap:10px; border-radius:18px;}
+    .controls .seg{justify-content:center;}
+    .controls .ctl-right{justify-content:center;}
+    .controls .reset{justify-content:center;}
+    .item{padding:16px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important; scroll-behavior:auto !important;}
+    .item{opacity:1; transform:none;}
+  }
+  @media print{
+    body::before,body::after,.topbar,.controls,.reset{display:none !important;}
+    .item{break-inside:avoid; box-shadow:none; opacity:1; transform:none;}
+  }
+</style>
+<script>
+  /* apply saved day/night theme before paint to avoid a bright flash */
+  (function(){ try{
+    var t = localStorage.getItem('calmHouse.theme');
+    document.documentElement.dataset.theme = (t==='night') ? 'night' : 'day';
+  }catch(e){ document.documentElement.dataset.theme='day'; } })();
+</script>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="mark">Our Calm House &nbsp;<span>·</span>&nbsp; David &amp; Fayth</div>
+      <div class="pbar"><i id="pfill"></i></div>
+      <div class="pcount"><span id="pdone">0</span>/<span id="ptotal">0</span> &nbsp;·&nbsp; <span id="ppct">0%</span></div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to night mode" aria-pressed="false" title="Day / night mode">🌙</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Nuvali &nbsp;or&nbsp; Baguio</div>
+      <h1>A calm, healthy home<br />for <em>David &amp; Fayth</em></h1>
+      <p class="lede">A checklist for the home we'll rent or buy one day — shaped by what
+        circadian, training and longevity research say a house should do for the people living in it.</p>
+      <div class="locs">
+        <a class="loc-pill" href="https://www.dotproperty.com.ph/ads/land-for-sale-in-san-luis-village-benguet_3bf4bc3ac3be-06d0-b2f2-e8fb-3f69d089" target="_blank" rel="noopener">
+          <span class="dot baguio"></span><b>Baguio</b> · cool pine highlands
+          <span class="pill-lot">An actual lot: Rolling Hills, San Luis · 432 m² →</span></a>
+        <a class="loc-pill" href="https://arreorealty.com/property/lot-for-sale-in-treveia-nuvali/" target="_blank" rel="noopener">
+          <span class="dot nuvali"></span><b>Nuvali</b> · lowland eco-city
+          <span class="pill-lot">An actual lot: Treveia (Ayala Land) · 297 m² →</span></a>
+      </div>
+    </header>
+
+    <div class="controls">
+      <div class="seg" id="filters">
+        <button data-f="all" class="active">All</button>
+        <button data-f="todo">Remaining</button>
+        <button data-f="done">Done</button>
+      </div>
+      <div class="ctl-right">
+        <a class="view3d" href="House-3D.html" title="Open the interactive 3D model of this house">🏠 3D model →</a>
+        <button class="reset" id="reset">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset
+        </button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--gold-deep)"></i>★ marks the must-haves you listed</span>
+      <span><span class="dot nuvali"></span>Nuvali note</span>
+      <span><span class="dot baguio"></span>Baguio note</span>
+    </div>
+
+    <main id="app"></main>
+    <div class="empty" id="empty">Nothing here yet — switch the filter above.</div>
+
+    <footer>
+      <h3>The thinking behind the list</h3>
+      <p class="src">Every note distils published research on morning light and circadian rhythm, heat
+        exposure, aerobic (Zone-2) and strength training, the sleep environment, indoor air quality and
+        social connection. The specific figures cited — such as the reduction in mortality linked to
+        regular sauna use, and the survival benefit of strong relationships — come from peer-reviewed studies.</p>
+      <p class="src" style="margin-top:14px; color:var(--ink-faint);">Your progress is saved automatically in this browser. ✦ Made for the two of you.</p>
+    </footer>
+  </div>
+
+<script>
+const DATA = [
+  { id:"light", title:"Light &amp; the Morning Sun", accent:"var(--gold)",
+    icon:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    items:[
+      { t:"East-facing living areas &amp; a morning-light spot", star:true,
+        why:"Point the living room, kitchen or balcony east, so the first thing you do after waking — stepping out of the sleep room — is meet low-angle sun. 5–10 min of morning light within an hour of waking anchors your body clock, energy, mood and that night's sleep, and it has to be outdoors, since glass blocks most of the light.",
+        n:"Easy to choose lot orientation in the planned subdivisions.",
+        b:"Hilly — make sure a ridge or tall pines don't block the actual sunrise." },
+      { t:"A sheltered outdoor spot to stand in the sun",
+        why:"A balcony, patio or garden corner where you'll actually linger 5–10 minutes each morning, coffee in hand. This is your real sunrise + gentle-mobility space." },
+      { t:"Bright, light-filled living spaces",
+        why:"Daytime brightness in the rooms where you spend the day drives alertness and a steeper light/dark contrast for deeper sleep. Look for cross-light, not one dim side." },
+      { t:"Low light pollution around the home at night",
+        why:"Minimal street-light spill in the evening protects melatonin and your wind-down. Check the surroundings at night, not just at midday." }
+    ]},
+
+  { id:"move", title:"Movement Outside the Door", accent:"var(--sage)",
+    icon:'<path d="M5 19l4-9 4 4 6-9"/><circle cx="19" cy="5" r="1.6"/><path d="M3 21h18"/>',
+    items:[
+      { t:"Cycling- &amp; running-friendly roads, right outside", star:true,
+        why:"Step out and go. An easy aerobic base wants roughly four 45–60 min easy (Zone-2) sessions a week — far more likely when safe routes start at your door.",
+        n:"~42 km of bike lanes + ~50 km of trails, ~45k cyclists a month, bike-repair stations — exceptional.",
+        b:"Scenic but steep and trafficked downtown; Camp John Hay loops are the calm choice." },
+      { t:"A rubberized track nearby", star:true,
+        why:"A forgiving surface for intervals and tempo work without the joint cost of concrete.",
+        n:"Scout the school &amp; sports-complex ovals around the estate.",
+        b:"University &amp; athletic-bowl ovals (SLU, UP Baguio, Teachers Camp)." },
+      { t:"A grassy hill for hill sprints", star:true,
+        why:"Your VO₂max engine — roughly one short, hard ~30-min session a week. Grass cuts impact force on bones, joints and Achilles versus concrete, so repeated sprints stay kind to the body.",
+        n:"Flatter ground — look to the Camp N trails or an estate slope.",
+        b:"Hills everywhere — a natural advantage, plus soft pine-forest ground." },
+      { t:"Long, low-traffic Zone-2 routes",
+        why:"Uninterrupted 45–60 min loops where you won't stop at lights — the backbone of aerobic and metabolic health." },
+      { t:"Safe walking loops for daily steps",
+        why:"Everyday low-level movement is its own longevity lever. Walkable errands beat a car trip." }
+    ]},
+
+  { id:"train", title:"Train &amp; Recover at Home", accent:"var(--clay)",
+    icon:'<path d="M6.5 6.5l11 11M4 9l-1.5-1.5M20 15l1.5 1.5M9 4L7.5 2.5M16.5 21.5L15 20M3 11l8 8M13 3l8 8"/>',
+    items:[
+      { t:"Space for a home gym (strength + stability)",
+        why:"Three full-body strength sessions plus about an hour of stability work a week. A dedicated space is what makes it actually happen — see the training &amp; recovery room below." },
+      { t:"Room for a sauna or heat",
+        why:"Around 20 min at ~80 °C, four to seven times a week is linked to up to ~40% lower all-cause mortality and ~50% fewer fatal cardiac events, via heat-shock proteins. Even a small infrared cabin needs a planned corner and power." },
+      { t:"Room for a cold plunge or cold shower",
+        why:"Deliberate cold for resilience, mood and recovery. A tub on the patio or one strong cold line is enough to start." },
+      { t:"Stairs in the home",
+        why:"Free daily movement and a simple leg + aerobic stimulus — quietly protective as we age." }
+    ]},
+
+  { id:"sleep", title:"A Sleep-Only Bedroom", accent:"var(--stone)",
+    icon:'<path d="M20 14.5A8 8 0 1 1 9.5 4 6.2 6.2 0 0 0 20 14.5z"/>',
+    items:[
+      { t:"Small &amp; cocoon-like — for sleep only",
+        why:"A compact room your brain learns to link with one thing: rest. No desk, no TV, no workouts — those all live in the living areas. A smaller volume is also far easier to keep dark, quiet and cool." },
+      { t:"Dark by design — little or no sun-facing window",
+        why:"For sleep, darkness wins, so a room with no east/west sun — even a near-windowless one — is an advantage: no dawn glare, no heat gain, no street light. Keep any window small, high or north-facing with blackout, and check local building code, which usually requires some window for ventilation and fire escape. You get your morning light by stepping into the east-facing living space instead." },
+      { t:"Excellent ventilation &amp; fresh air",
+        why:"This is the one real trade-off of a low-window room: the air must keep moving. Plan strong, quiet mechanical ventilation (and ideally a small high vent or transom) so CO₂, humidity and stale air never build up overnight.",
+        n:"Warm lowland — pair ventilation with efficient cooling and filtration.",
+        b:"Cool air helps, but fog and damp mean ventilation has to be extra good to avoid mould." },
+      { t:"Quiet — buffered from the road &amp; the rest of the house",
+        why:"Tuck the room away from the street, the living room and any generators. Quiet protects deep sleep; white noise or earplugs make a good backup." },
+      { t:"Cool, stable sleeping temperature",
+        why:"Aim for around 18 °C / 65 °F; the drop in temperature is the body's cue for deep sleep.",
+        n:"Warm lowland — budget for efficient, quiet cooling.",
+        b:"15–23 °C year-round does this for free — a real edge for sleep." },
+      { t:"An adjoining changing / dressing room",
+        why:"Keep wardrobes, dressing and getting-ready out of the sleep room so it stays a calm, clutter-free cave. A walk-through dressing room between the bath and bedroom works beautifully." }
+    ]},
+
+  { id:"rooms", title:"A Five-Bedroom Home, Room by Room", accent:"var(--clay-deep)",
+    icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12M15 3v6"/>',
+    items:[
+      { t:"Five bedrooms, each with a clear job",
+        why:"With five rooms you're not just adding beds — you're giving every part of life its own space. A rough split: (1) the sleep-only master + dressing room, (2) a training &amp; recovery room, (3) a quiet office, (4) a guest room, and (5) a future-family room. Adjust freely, but give each a purpose." },
+      { t:"A living room as the hub for everything-but-sleep",
+        why:"Morning light, stretching, eating, relaxing and time together all happen here — so the bedroom can stay purely for rest. Make it the bright, east-facing heart of the home." },
+      { t:"A dedicated training &amp; recovery room",
+        why:"Turn one bedroom into the gym + sauna + cold-plunge + mobility space, so strength, heat and recovery have a permanent home instead of a daily set-up and pack-away." },
+      { t:"A quiet office / focus room",
+        why:"A real door for work-from-home, study and calls — kept separate from both rest and training." },
+      { t:"A guest &amp; future-family room",
+        why:"Room for visitors now and a growing family later, without reshuffling the whole house." },
+      { t:"A small quiet / prayer room or nook",
+        why:"A calm corner for prayer, reading or stillness together — an easy and meaningful win in a five-bedroom layout." },
+      { t:"Bathrooms, storage &amp; flow to match",
+        why:"Five bedrooms need the plumbing, storage and circulation to suit — ideally an en-suite for the master plus its dressing room, and a separate guest bath." }
+    ]},
+
+  { id:"air", title:"Clean Air &amp; Water", accent:"var(--teal)",
+    icon:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+    items:[
+      { t:"Clean air, away from traffic &amp; industry",
+        why:"Fine particulates (PM2.5) are a major global health burden. Distance from highways, diesel and open burning matters with every breath.",
+        n:"Green eco-estate — far better air than Metro Manila.",
+        b:"Pine areas are pristine; the city core now has traffic haze, so choose the edge." },
+      { t:"Good whole-home cross-ventilation",
+        why:"We spend roughly 90% of life indoors; fresh-air exchange clears indoor particulates, CO₂ and VOCs across the whole house." },
+      { t:"Low damp &amp; mould risk",
+        why:"Moisture and mould spores are a hidden indoor-air hazard. Check walls, ceilings, drainage and any history of leaks.",
+        n:"Tropical but drier than the highlands — still inspect.",
+        b:"Fog and a heavy rainy season raise mould risk; inspect carefully." },
+      { t:"Clean water, easily accessible", star:true,
+        why:"Reliable, safe water for drinking and cooking — and plumbing that can take a good filter." },
+      { t:"Greenery &amp; trees around the home",
+        why:"Forest-style green (Baguio's pines, Nuvali's forest park) means cleaner air, lower stress and easy 'forest-bathing' walks." }
+    ]},
+
+  { id:"food", title:"Nourishment", accent:"var(--sage-deep)",
+    icon:'<path d="M12 21c-1-6-5-8-5-12a5 5 0 0 1 10 0c0 4-4 6-5 12z"/><path d="M12 9v12"/>',
+    items:[
+      { t:"Fresh produce &amp; healthy food nearby", star:true,
+        why:"Daily access to vegetables, fruit and quality protein makes the healthy choice the easy default.",
+        n:"Weekend / organic markets plus full groceries.",
+        b:"Among the freshest, cheapest highland produce in the country (Baguio Public Market, La Trinidad)." },
+      { t:"A farmers' or wet market within reach",
+        why:"Fresher, more seasonal and cheaper than supermarket shelves — and a small community ritual." },
+      { t:"A kitchen built for home cooking",
+        why:"Counter space and storage so cooking from scratch is easy, not a chore." },
+      { t:"Outdoor space to grow veg &amp; sprout greens",
+        why:"A small garden or sunny balcony lets you grow herbs and sprout broccoli — an easy source of sulforaphane, aiming for one to two servings of cruciferous veg a day." }
+    ]},
+
+  { id:"people", title:"Community &amp; Spirit", accent:"var(--clay)",
+    icon:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5M15 20c0-2.3 1-4 4-4"/>',
+    items:[
+      { t:"A community of active people", star:true,
+        why:"Strong social ties rival quitting smoking for survival odds — about a 50% boost. Training partners keep you both consistent and connected.",
+        n:"A huge cycling and running culture.",
+        b:"A deep runner, hiker and trail scene." },
+      { t:"A Christian community / church nearby", star:true,
+        why:"Shared faith, belonging and purpose — an underrated lever for emotional health and longevity. Find the congregation that fits you two.",
+        n:"Churches &amp; chapels across Santa Rosa, minutes away.",
+        b:"Rich church life, from the Cathedral to small parishes." },
+      { t:"Walkable to neighbours &amp; gathering spots",
+        why:"Casual, frequent connection — a café, a plaza, a friend's door — is what actually sustains relationships." },
+      { t:"A safe, low-crime neighbourhood",
+        why:"So either of you can walk or run early or late without a second thought." }
+    ]},
+
+  { id:"future", title:"Practical &amp; Future-Proof", accent:"var(--ink-soft)",
+    icon:'<path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/>',
+    items:[
+      { t:"Reliable internet",
+        why:"Training apps, work-from-home, telehealth and staying close to family." },
+      { t:"Reliable power, with backup",
+        why:"Brownouts happen — a backup keeps the fridge, fans/AC, water pump, ventilation and sauna running." },
+      { t:"Quality healthcare within reach",
+        why:"A trusted clinic or hospital nearby for check-ups and the occasional emergency." },
+      { t:"Secure storage for bikes &amp; gear",
+        why:"Bikes, weights, sauna and recovery kit — protected and easy to grab." },
+      { t:"Flood- &amp; landslide-safe ground",
+        why:"Check the elevation and drainage before anything else.",
+        n:"Planned drainage, but still verify the specific lot.",
+        b:"Avoid steep cut-slopes that can slide in heavy rain." },
+      { t:"Room to grow",
+        why:"Space for a future family and for both your goals to keep evolving." },
+      { t:"Sound title &amp; fair value (if buying)",
+        why:"Clean title, no encumbrances, a fair price and decent resale or rental demand." },
+      { t:"A calm, quiet outdoor corner",
+        why:"For stretching, mobility, prayer or just morning coffee in the sun — the soul of a calm house." }
+    ]}
+];
+
+const KEY = "calmHouseChecklist.v2";
+const FKEY = "calmHouseChecklist.filter";
+let done = new Set();
+try{ const s = JSON.parse(localStorage.getItem(KEY)||"[]"); if(Array.isArray(s)) done = new Set(s); }catch(e){}
+
+const app = document.getElementById("app");
+let idx = 0;
+const allIds = [];
+
+DATA.forEach(group=>{
+  const sec = document.createElement("section");
+  sec.className = "group";
+  sec.style.setProperty("--accent", group.accent);
+  sec.dataset.gid = group.id;
+
+  const head = document.createElement("div");
+  head.className = "group-head";
+  head.innerHTML =
+    '<div class="group-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">'+group.icon+'</svg></div>'+
+    '<h2>'+group.title+'</h2>'+
+    '<div class="group-prog" data-prog="'+group.id+'">0/'+group.items.length+'</div>';
+  sec.appendChild(head);
+
+  group.items.forEach(it=>{
+    const id = group.id+"-"+(idx++);
+    allIds.push(id);
+    const art = document.createElement("article");
+    art.className = "item";
+    art.dataset.id = id;
+
+    const star = it.star ? '<span class="star">★ must-have</span>' : "";
+    let loc = "";
+    if(it.n || it.b){
+      loc = '<div class="loc">'+
+        (it.n?'<div class="chip n"><span><b>Nuvali</b>'+it.n+'</span></div>':'')+
+        (it.b?'<div class="chip b"><span><b>Baguio</b>'+it.b+'</span></div>':'')+
+        '</div>';
+    }
+
+    art.innerHTML =
+      '<button class="check" type="button" aria-pressed="false" aria-label="Mark done">'+
+        '<svg viewBox="0 0 24 24"><path d="M5 12.5l4 4L19 7"/></svg></button>'+
+      '<div class="body">'+
+        '<div class="it-head"><h3 class="it-title">'+it.t+'</h3>'+star+'</div>'+
+        '<p class="why">'+it.why+'</p>'+ loc +
+      '</div>';
+
+    art.addEventListener("click", ()=>toggle(id, art));
+    sec.appendChild(art);
+  });
+
+  app.appendChild(sec);
+});
+
+document.getElementById("ptotal").textContent = allIds.length;
+
+function toggle(id, art){
+  if(done.has(id)) done.delete(id); else done.add(id);
+  art.classList.toggle("done", done.has(id));
+  art.querySelector(".check").setAttribute("aria-pressed", done.has(id));
+  save(); updateProgress(); applyFilter();
+}
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify([...done])); }catch(e){} }
+
+function updateProgress(){
+  const total = allIds.length, d = [...done].filter(x=>allIds.includes(x)).length;
+  const pct = total? Math.round(d/total*100):0;
+  document.getElementById("pdone").textContent = d;
+  document.getElementById("ppct").textContent = pct+"%";
+  document.getElementById("pfill").style.width = pct+"%";
+  DATA.forEach(g=>{
+    const el = document.querySelector('[data-prog="'+g.id+'"]');
+    const ids = allIds.filter(x=>x.startsWith(g.id+"-"));
+    const gd = ids.filter(x=>done.has(x)).length;
+    el.textContent = gd+"/"+ids.length;
+  });
+}
+
+// initial paint of saved state
+document.querySelectorAll(".item").forEach(art=>{
+  if(done.has(art.dataset.id)){
+    art.classList.add("done");
+    art.querySelector(".check").setAttribute("aria-pressed","true");
+  }
+});
+updateProgress();
+
+/* ---- filter ---- */
+let filter = "all";
+try{ filter = localStorage.getItem(FKEY) || "all"; }catch(e){}
+const filtersEl = document.getElementById("filters");
+filtersEl.querySelectorAll("button").forEach(b=>{
+  b.classList.toggle("active", b.dataset.f===filter);
+  b.addEventListener("click", ()=>{
+    filter = b.dataset.f;
+    try{ localStorage.setItem(FKEY, filter); }catch(e){}
+    filtersEl.querySelectorAll("button").forEach(x=>x.classList.toggle("active", x===b));
+    applyFilter();
+  });
+});
+
+function applyFilter(){
+  let visible = 0;
+  document.querySelectorAll(".item").forEach(art=>{
+    const isDone = done.has(art.dataset.id);
+    const show = filter==="all" || (filter==="done"&&isDone) || (filter==="todo"&&!isDone);
+    art.style.display = show ? "" : "none";
+    if(show) visible++;
+  });
+  DATA.forEach(g=>{
+    const sec = document.querySelector('[data-gid="'+g.id+'"]');
+    const any = [...sec.querySelectorAll(".item")].some(a=>a.style.display!=="none");
+    sec.style.display = any ? "" : "none";
+  });
+  document.getElementById("empty").style.display = visible? "none":"block";
+}
+applyFilter();
+
+/* ---- reset ---- */
+document.getElementById("reset").addEventListener("click", ()=>{
+  if(!done.size || confirm("Clear all ticks and start fresh?")){
+    done.clear(); save();
+    document.querySelectorAll(".item").forEach(a=>{
+      a.classList.remove("done");
+      a.querySelector(".check").setAttribute("aria-pressed","false");
+    });
+    updateProgress(); applyFilter();
+  }
+});
+
+/* ---- scroll reveal ---- */
+if("IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches){
+  const io = new IntersectionObserver((es)=>{
+    es.forEach((e,i)=>{ if(e.isIntersecting){ e.target.style.transitionDelay=(Math.min(i,6)*45)+"ms"; e.target.classList.add("in"); io.unobserve(e.target);} });
+  }, {threshold:.08, rootMargin:"0px 0px -40px 0px"});
+  document.querySelectorAll(".item").forEach(a=>io.observe(a));
+}else{
+  document.querySelectorAll(".item").forEach(a=>a.classList.add("in"));
+}
+
+/* ---- day / night theme toggle ---- */
+(function(){
+  var KEY="calmHouse.theme", btn=document.getElementById("themeToggle");
+  function cur(){ return document.documentElement.dataset.theme==="night" ? "night" : "day"; }
+  function paint(){
+    if(!btn) return;
+    var night = cur()==="night";
+    btn.textContent = night ? "☀️" : "🌙";
+    btn.setAttribute("aria-pressed", night);
+    btn.setAttribute("aria-label", night ? "Switch to day mode" : "Switch to night mode");
+  }
+  function toggle(){
+    var n = cur()==="night" ? "day" : "night";
+    document.documentElement.dataset.theme = n;
+    try{ localStorage.setItem(KEY, n); }catch(e){}
+    paint();
+  }
+  if(btn) btn.addEventListener("click", toggle);
+  paint();
+})();
+</script>
+</body>
+</html>

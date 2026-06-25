@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Our Calm House — David &amp; Fayth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{ --paper:#f3ecdd; --ink:#241f1a; --ink-soft:#574d3f; --line:#cabb9f; --card:#fdfaf3;
+    --sage:#6f8254; --sage-deep:#4c5c36; --clay:#b0653b; --clay-deep:#8c4c28;
+    --sky1:#ffe7b0; --sky2:#f3ddbb; --sky3:#ece2cf; --sky4:#e3ddc6;
+    --shadow:0 14px 34px -14px rgba(40,34,26,.42); }
+  /* night mode: dim, warm, low-blue, sleep-friendly */
+  html[data-theme="night"]{
+    --paper:#14110d; --ink:#e7d7b5; --ink-soft:#bcab8a; --line:#352c20; --card:#201a13;
+    --sage:#92a271; --sage-deep:#aaba88; --clay:#d2956a; --clay-deep:#bd7c52;
+    --sky1:#231a16; --sky2:#1b1510; --sky3:#15110c; --sky4:#100d0a;
+    --shadow:0 14px 34px -14px rgba(0,0,0,.6); }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;}
+  body{font-family:"Manrope",system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(120% 90% at 78% -6%, var(--sky1) 0%, var(--sky2) 30%, var(--sky3) 60%, var(--sky4) 100%);
+    display:grid;place-items:center;padding:28px;min-height:100vh;transition:background .5s, color .3s;}
+  .wrap{max-width:760px;width:100%;text-align:center;}
+  .eyebrow{font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:18px;}
+  h1{font-family:"Fraunces",serif;font-weight:500;font-size:clamp(2.1rem,6vw,3.4rem);line-height:1.05;margin:0 0 14px;}
+  h1 em{font-style:italic;color:var(--clay);}
+  p.lede{max-width:520px;margin:0 auto 30px;color:var(--ink-soft);font-size:clamp(1rem,2.4vw,1.1rem);line-height:1.6;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:8px;}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);
+    border-radius:20px;padding:26px 22px;box-shadow:var(--shadow);transition:transform .25s, box-shadow .25s, border-color .25s, background .4s;text-align:left;}
+  a.card:hover{transform:translateY(-3px);border-color:var(--clay);}
+  .card .ic{font-size:1.9rem;}
+  .card h2{font-family:"Fraunces",serif;font-weight:600;font-size:1.3rem;margin:10px 0 6px;}
+  .card p{margin:0 0 14px;color:var(--ink-soft);font-size:.92rem;line-height:1.5;}
+  .go{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:#fff;background:var(--clay);
+    border:1px solid var(--clay-deep);padding:9px 16px;border-radius:99px;font-size:.86rem;}
+  a.card:nth-child(2) .go{background:var(--sage);border-color:var(--sage-deep);}
+  footer{margin-top:32px;color:var(--ink-soft);font-size:.8rem;}
+  .theme-toggle{position:fixed;top:18px;right:18px;width:40px;height:40px;border-radius:50%;
+    border:1px solid var(--line);background:var(--card);color:var(--ink-soft);cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;line-height:1;
+    box-shadow:var(--shadow);transition:.25s;z-index:5;}
+  .theme-toggle:hover{color:var(--clay-deep);border-color:var(--clay);transform:translateY(-1px);}
+</style>
+<script>
+  (function(){ try{ var t=localStorage.getItem('calmHouse.theme');
+    document.documentElement.dataset.theme=(t==='night')?'night':'day'; }catch(e){ document.documentElement.dataset.theme='day'; } })();
+</script>
+</head>
+<body>
+  <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to night mode" aria-pressed="false" title="Day / night mode">🌙</button>
+  <div class="wrap">
+    <div class="eyebrow">Nuvali &nbsp;or&nbsp; Baguio</div>
+    <h1>Our calm, healthy home<br />for <em>David &amp; Fayth</em></h1>
+    <p class="lede">Two ways to explore the home we'll rent or build one day — a research-backed
+      healthy-home checklist, and an interactive 3D model that fits itself to a real lot for sale.</p>
+    <div class="cards">
+      <a class="card" href="Calm-House-Checklist.html">
+        <div class="ic">📋</div>
+        <h2>Healthy-Home Checklist</h2>
+        <p>Everything a calm, healthy home should do — light, movement, sleep, air, food, community — with notes for Nuvali vs Baguio and links to real lots.</p>
+        <span class="go">Open the checklist →</span>
+      </a>
+      <a class="card" href="House-3D.html">
+        <div class="ic">🏠</div>
+        <h2>Interactive 3D Model</h2>
+        <p>A 5-bedroom, open-plan one-storey home you can rotate and edit. It auto-resizes to fit an actual Baguio or Nuvali lot, with a day-to-night sun you can move.</p>
+        <span class="go">Open the 3D model →</span>
+      </a>
+    </div>
+    <footer>✦ Made for the two of you.</footer>
+  </div>
+<script>
+  (function(){
+    var KEY="calmHouse.theme", btn=document.getElementById("themeToggle");
+    function cur(){ return document.documentElement.dataset.theme==="night"?"night":"day"; }
+    function paint(){ var n=cur()==="night"; btn.textContent=n?"☀️":"🌙";
+      btn.setAttribute("aria-pressed",n); btn.setAttribute("aria-label",n?"Switch to day mode":"Switch to night mode"); }
+    btn.addEventListener("click",function(){ var n=cur()==="night"?"day":"night";
+      document.documentElement.dataset.theme=n; try{localStorage.setItem(KEY,n);}catch(e){} paint(); });
+    paint();
+  })();
+</script>
+</body>
+</html>
