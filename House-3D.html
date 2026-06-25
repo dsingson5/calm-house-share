@@ -239,6 +239,9 @@
     <div class="row">
       <button class="btn" data-t="grid">Grid</button>
     </div>
+    <div class="row">
+      <button class="btn on" data-t="attic">Attic stock room</button>
+    </div>
     <div class="sep"></div>
     <h4>Edit</h4>
     <button class="btn full" id="editToggle">edit mode: off</button>
@@ -301,24 +304,24 @@
    Edit ROOMS below: { id,name,zone,x,z,w,d,furn, open?:true (open-plan, no walls), wall?:false (pergola) }
    x=East, z=South, metres, in DESIGN units. The whole house auto-scales to fit the chosen lot. */
 const ROOMS = [
-  /* ---- open social core: these flow into each other so people can interact easily ---- */
-  { id:"living",  name:"Living Hub",          zone:"living",  x:11.2, z:4.2, w:5.4, d:5.6, furn:"living",  open:true },
-  { id:"kitchen", name:"Kitchen & Dining",    zone:"kitchen", x:11.2, z:0.0, w:5.4, d:4.2, furn:"kitchen", open:true },
-  { id:"veranda", name:"Morning Veranda",     zone:"veranda", x:16.6, z:2.0, w:2.4, d:7.8, furn:"veranda", wall:false },
-  { id:"office",  name:"Focus Studio",        zone:"office",  x:11.2, z:9.8, w:3.4, d:3.2, furn:"office",  open:true },
-  { id:"prayer",  name:"Prayer Nook",         zone:"prayer",  x:14.6, z:9.8, w:2.0, d:3.2, furn:"prayer",  open:true },
+  /* ---- one big open zone: kitchen + living + gym + studio all flow together ---- */
+  { id:"kitchen", name:"Kitchen & Dining",    zone:"kitchen", x:10.8, z:0.0, w:5.4, d:4.0, furn:"kitchen", open:true },
+  { id:"living",  name:"Living Hub",          zone:"living",  x:10.8, z:4.0, w:5.4, d:4.6, furn:"living",  open:true },
+  { id:"veranda", name:"Morning Veranda",     zone:"veranda", x:16.4, z:2.0, w:2.4, d:6.6, furn:"veranda", wall:false },
+  { id:"train",   name:"Gym & Recovery",      zone:"train",   x:0.0,  z:9.0, w:8.4, d:4.6, furn:"gym",     open:true },
+  { id:"office",  name:"Focus Studio · 5-seat",zone:"office", x:8.6,  z:9.0, w:5.6, d:4.6, furn:"studio",  open:true },
+  { id:"prayer",  name:"Prayer Nook",         zone:"prayer",  x:14.4, z:9.0, w:2.2, d:4.6, furn:"prayer",  open:true },
   /* ---- five bedrooms (walled & private — sleep wants dark + quiet) ---- */
   { id:"master",  name:"Sleep-Only Bedroom",  zone:"sleep",   x:0.0,  z:0.0, w:4.4, d:3.8, furn:"bed" },
-  { id:"guest",   name:"Guest Room",          zone:"guest",   x:4.6,  z:0.0, w:3.3, d:3.6, furn:"bed" },
-  { id:"kids",    name:"Kids' Room",          zone:"kids",    x:7.9,  z:0.0, w:3.3, d:3.6, furn:"bed" },
-  { id:"family",  name:"Future-Family Room",  zone:"family",  x:4.6,  z:3.8, w:3.3, d:3.5, furn:"bed" },
-  { id:"flex",    name:"Flex · 5th Bedroom",  zone:"flex",    x:7.9,  z:3.8, w:3.3, d:3.5, furn:"bed" },
+  { id:"guest",   name:"Guest Room",          zone:"guest",   x:4.6,  z:0.0, w:3.0, d:3.6, furn:"bed" },
+  { id:"kids",    name:"Kids' Room",          zone:"kids",    x:7.6,  z:0.0, w:3.0, d:3.6, furn:"bed" },
+  { id:"family",  name:"Future-Family Room",  zone:"family",  x:4.6,  z:3.8, w:3.0, d:3.4, furn:"bed" },
+  { id:"flex",    name:"Flex · 5th Bedroom",  zone:"flex",    x:7.6,  z:3.8, w:3.0, d:3.4, furn:"bed" },
   /* ---- master support + service ---- */
   { id:"dress",   name:"Dressing Room",       zone:"dress",   x:0.0,  z:3.8, w:2.2, d:2.6, furn:"wardrobe" },
   { id:"ensuite", name:"En-suite",            zone:"bath",    x:2.2,  z:3.8, w:2.2, d:2.6, furn:"bath" },
-  { id:"train",   name:"Train & Recover",     zone:"train",   x:0.0,  z:6.6, w:4.6, d:4.4, furn:"gym" },
-  { id:"gbath",   name:"Guest Bath",          zone:"bath",    x:4.6,  z:7.3, w:2.6, d:1.8, furn:"bath" },
-  { id:"utility", name:"Laundry / Store",     zone:"util",    x:7.4,  z:7.3, w:3.5, d:1.8, furn:"util" }
+  { id:"gbath",   name:"Guest Bath",          zone:"bath",    x:0.0,  z:6.6, w:2.1, d:1.7, furn:"bath" },
+  { id:"utility", name:"Laundry / Store",     zone:"util",    x:2.2,  z:6.6, w:2.2, d:1.7, furn:"util" }
 ];
 const ZONES = {
   living:{floor:0xEBC98C,why:"East-facing hub — open to kitchen & veranda so everyone's together."},
@@ -327,8 +330,8 @@ const ZONES = {
   sleep:{floor:0x9DB0C6,why:"Small, dark, quiet, ventilated — sleep only."},
   dress:{floor:0xC9B79A,why:"Wardrobes out of the sleep room."},
   bath:{floor:0x96CFC9,why:"Calm, ventilated wet space."},
-  train:{floor:0x8893A0,why:"Hyrox gym, ergs, sauna, cold plunge."},
-  office:{floor:0xC4A1D6,why:"A quiet focus studio, open to the hub."},
+  train:{floor:0x8893A0,why:"Open gym & recovery — rig, ergs, sauna, plunge + the Hyrox sled lane out front."},
+  office:{floor:0xC4A1D6,why:"Big focus studio — seats 5 around the table, open to the hub."},
   guest:{floor:0xBDD79E,why:"Visitors now, flexible later."},
   kids:{floor:0xF0B49E,why:"Kids' room — bright and playful."},
   family:{floor:0xE7B6C8,why:"Future-family room — ready to grow into."},
@@ -366,7 +369,7 @@ let scene,camera,renderer,raycaster,ndc;
 let houseGroup,groundGroup,lotGroup,gardenGroup,dimGroup,gridHelper;
 const roomGroups={}, floorMeshes=[];
 let selectionOutline=null, selectedId=null, editMode=false, wallHeight=2.7;
-const show={dims:true,walls:true,roof:false,furniture:true,labels:true,garden:true,grid:false};
+const show={dims:true,walls:true,roof:false,furniture:true,labels:true,garden:true,grid:false,attic:true};
 const CENTROID={x:13.5,z:6.0};   /* the open social core — bedroom doors face toward it */
 
 /* sun path + day/night */
@@ -438,6 +441,13 @@ function addFurniture(fg,r){
     case "office":{put(box(1.6,0.08,0.7,wood),cx,0.74,cz-0.3);put(box(0.08,0.74,0.6,dark),cx-0.74,0.37,cz-0.3);
       put(box(0.08,0.74,0.6,dark),cx+0.74,0.37,cz-0.3);put(box(0.55,0.5,0.55,0x5d6350),cx,0.35,cz+0.4);
       put(box(1.2,1.4,0.3,wood),r.x+0.5,0.8,r.z+r.d-0.2);break;}
+    case "studio":{ /* 5-seat focus studio — big table + 5 chairs + credenza & screen */
+      put(box(2.8,0.08,1.3,wood),cx,0.74,cz);
+      for(const sx of[cx-1.25,cx+1.25])put(box(0.1,0.74,1.1,dark),sx,0.37,cz);
+      const chair=(x,z,back)=>{put(box(0.5,0.46,0.5,0x5d6350),x,0.23,z);put(box(0.5,0.55,0.09,0x5d6350),x,0.62,z+back*0.22);};
+      chair(cx-0.8,cz-1.0,-1);chair(cx+0.8,cz-1.0,-1);chair(cx-0.8,cz+1.0,1);chair(cx+0.8,cz+1.0,1);
+      put(box(0.5,0.46,0.5,0x5d6350),cx-2.0,0.23,cz);put(box(0.09,0.55,0.5,0x5d6350),cx-2.22,0.62,cz);
+      put(box(r.w-1.4,0.42,0.42,wood),cx,0.21,r.z+0.32);put(box(1.7,0.95,0.06,0x2c2a26),cx,1.0,r.z+0.2);break;}
     case "wardrobe":{const h=Math.min(2.0,wallHeight-0.3);put(box(r.w-0.4,h,0.55,wood),cx,h/2,r.z+0.35);
       put(box(0.8,0.8,0.5,0xbfa988),cx,0.4,cz+0.4);break;}
     case "bath":{put(box(Math.min(1.6,r.w-0.5),0.5,0.8,0xf2f0ea),cx,0.3,r.z+0.6);put(box(r.w-0.6,0.8,0.45,0xd7cbb4),cx,0.45,r.z+r.d-0.3);break;}
@@ -492,12 +502,31 @@ function computeFit(){
   houseGroup.scale.set(houseScale,houseScale,houseScale);
   houseGroup.position.set(offX,0,offZ);
 }
+function buildAttic(){
+  const g=new THREE.Group();
+  const ax=0.2, az=0.2, aw=10.2, ad=8.0, base=wallHeight+0.06, h=1.6, wcol=0xcdbf9f;
+  const fl=box(aw,0.12,ad,0xb9a884,{rough:0.9});fl.position.set(ax+aw/2,base,az+ad/2);g.add(fl);
+  const w1=box(aw,h,0.1,wcol,{op:0.45});w1.castShadow=false;w1.position.set(ax+aw/2,base+h/2,az);g.add(w1);
+  const w2=box(aw,h,0.1,wcol,{op:0.45});w2.castShadow=false;w2.position.set(ax+aw/2,base+h/2,az+ad);g.add(w2);
+  const w3=box(0.1,h,ad,wcol,{op:0.45});w3.castShadow=false;w3.position.set(ax,base+h/2,az+ad/2);g.add(w3);
+  const w4=box(0.1,h,ad,wcol,{op:0.45});w4.castShadow=false;w4.position.set(ax+aw,base+h/2,az+ad/2);g.add(w4);
+  const roof=box(aw+0.3,0.14,ad+0.3,0xb96b4b,{rough:0.85});roof.position.set(ax+aw/2,base+h+0.07,az+ad/2);g.add(roof);
+  const crate=(x,z,s)=>{const c=box(s,s*0.8,s,0xb98a4e,{rough:0.95});c.position.set(x,base+0.12+s*0.4,z);g.add(c);
+    const lid=box(s+0.04,0.05,s+0.04,0xa6783f);lid.position.set(x,base+0.12+s*0.8,z);g.add(lid);};
+  crate(ax+1.5,az+1.5,1.0);crate(ax+1.5,az+3.1,0.8);crate(ax+3.1,az+1.7,0.9);
+  crate(ax+aw-1.7,az+1.7,1.0);crate(ax+aw-1.5,az+3.3,0.8);crate(ax+2.6,az+ad-1.7,0.9);crate(ax+aw-2.4,az+ad-1.7,0.8);
+  const hatch=box(0.9,0.1,0.9,0x7c5a3a);hatch.position.set(ax+aw-1.1,base+0.02,az+ad-0.7);g.add(hatch);
+  const lb=makeLabel("Attic · Stock Room","room");lb.position.set(ax+aw/2,base+h+0.7,az+ad/2);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
+  return g;
+}
 function rebuildHouse(){
   Object.values(roomGroups).forEach(g=>houseGroup.remove(g));for(const k in roomGroups)delete roomGroups[k];floorMeshes.length=0;
   ROOMS.forEach(r=>{if(r.hidden)return;const g=buildRoom(r);roomGroups[r.id]=g;houseGroup.add(g);});
   if(houseGroup.userData.slab)houseGroup.remove(houseGroup.userData.slab);
   const slab=box(DESIGN.w+0.8,0.1,DESIGN.d+0.8,0xd9cdb6,{rough:1});slab.castShadow=false;
   slab.position.set(DESIGN.minX+DESIGN.w/2,-0.02,DESIGN.minZ+DESIGN.d/2);houseGroup.add(slab);houseGroup.userData.slab=slab;
+  if(houseGroup.userData.attic)houseGroup.remove(houseGroup.userData.attic);
+  const at=buildAttic();at.visible=show.attic;houseGroup.add(at);houseGroup.userData.attic=at;
   if(selectedId&&roomGroups[selectedId])highlight(selectedId);else clearHighlight();
 }
 function highlight(id){clearHighlight();const r=ROOMS.find(x=>x.id===id);if(!r)return;
@@ -538,16 +567,22 @@ function buildLot(){
 function buildGardenAndTrees(){
   if(gardenGroup)scene.remove(gardenGroup);gardenGroup=new THREE.Group();scene.add(gardenGroup);
   const lot=LOCS[LOC].lot, halfW=lot.w/2, halfD=lot.d/2;
-  /* front driveway + carport (south edge, +z), offset to one side */
+  /* carport + car + solar, tucked at the front-east corner */
   const cp=new THREE.Group();
-  const dw=new THREE.Mesh(new THREE.PlaneGeometry(5.0,4.2),mat(0xc7b79a,{rough:1}));dw.rotation.x=-Math.PI/2;dw.position.set(0,-0.02,0.5);dw.receiveShadow=true;cp.add(dw);
-  for(const px of[-2.2,2.2])for(const pz of[-1.4,1.4]){const p=box(0.16,2.4,0.16,0x8d7350);p.position.set(px,1.2,pz);cp.add(p);}
-  const roof=box(5.0,0.12,3.4,0x6b6256);roof.position.set(0,2.45,0);cp.add(roof);
-  for(let i=0;i<2;i++)for(let j=0;j<3;j++){const pv=box(1.4,0.04,0.9,0x16324a,{rough:0.4});pv.position.set(-1.6+j*1.6,2.56,-0.9+i*1.7);pv.rotation.x=-0.16;cp.add(pv);}
-  const car=new THREE.Group();const body=box(1.8,0.5,3.6,0x2f4858);body.position.y=0.55;car.add(body);
-  const cab=box(1.7,0.5,1.9,0x3b5a6e);cab.position.set(0,1.0,-0.1);car.add(cab);
-  for(const wx of[-0.8,0.8])for(const wz of[-1.1,1.1]){const wl=cyl(0.32,0.32,0.25,0x1a1a1a,16);wl.rotation.z=Math.PI/2;wl.position.set(wx,0.32,wz);car.add(wl);}
-  cp.add(car);cp.position.set(WC.x-lot.w*0.22,0,WC.z+halfD-2.6);gardenGroup.add(cp);
+  const dw=new THREE.Mesh(new THREE.PlaneGeometry(3.4,4.0),mat(0xc7b79a,{rough:1}));dw.rotation.x=-Math.PI/2;dw.position.set(0,-0.02,0.4);dw.receiveShadow=true;cp.add(dw);
+  for(const px of[-1.4,1.4])for(const pz of[-1.3,1.3]){const p=box(0.16,2.4,0.16,0x8d7350);p.position.set(px,1.2,pz);cp.add(p);}
+  const roof=box(3.6,0.12,3.2,0x6b6256);roof.position.set(0,2.45,0);cp.add(roof);
+  for(let i=0;i<2;i++)for(let j=0;j<2;j++){const pv=box(1.5,0.04,1.3,0x16324a,{rough:0.4});pv.position.set(-0.85+j*1.7,2.56,-0.8+i*1.6);pv.rotation.x=-0.16;cp.add(pv);}
+  const car=new THREE.Group();const body=box(1.8,0.5,3.4,0x2f4858);body.position.y=0.55;car.add(body);
+  const cab=box(1.7,0.5,1.8,0x3b5a6e);cab.position.set(0,1.0,-0.1);car.add(cab);
+  for(const wx of[-0.8,0.8])for(const wz of[-1.05,1.05]){const wl=cyl(0.32,0.32,0.25,0x1a1a1a,16);wl.rotation.z=Math.PI/2;wl.position.set(wx,0.32,wz);car.add(wl);}
+  cp.add(car);cp.position.set(WC.x+halfW-2.0,0,WC.z+halfD-2.6);gardenGroup.add(cp);
+  /* 15 m Hyrox-branded sled lane + 1 sled, across the front (in front of the open gym) */
+  gardenGroup.add(buildSledLane(WC.x, WC.z+halfD-1.3));
+  /* vegetable garden — raised beds along the back hedge */
+  for(let r=0;r<4;r++){const bx=WC.x-halfW+2.0+r*2.6, bz=WC.z-halfD+1.0;
+    const bed=box(2.3,0.22,0.6,0x6b5a3f);bed.position.set(bx,0.11,bz);gardenGroup.add(bed);
+    for(let c=0;c<5;c++){const v=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,6),mat([0x5f7a3a,0x6f8a44,0x7c9850][c%3]));v.scale.y=0.7;v.position.set(bx-0.8+c*0.4,0.32,bz);gardenGroup.add(v);}}
   /* a calm patio in the south-west garden for morning coffee */
   const patio=new THREE.Mesh(new THREE.PlaneGeometry(4,3),mat(0xd6c6a4,{rough:1}));patio.rotation.x=-Math.PI/2;patio.position.set(WC.x+lot.w*0.22,-0.01,WC.z+halfD-2.2);patio.receiveShadow=true;gardenGroup.add(patio);
   /* flower beds near the corners */
@@ -563,6 +598,30 @@ function buildGardenAndTrees(){
 }
 function makeTree(){const t=new THREE.Group();const tr=cyl(0.16,0.22,1.4,0x7c5a3a,8);tr.position.set(0,0.7,0);t.add(tr);
   const cols=[0x5f7148,0x6b7d50,0x768a58];for(let i=0;i<3;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(1.2-i*0.28,1.5,12),mat(cols[i]));c.castShadow=true;c.position.set(0,1.5+i*0.9,0);t.add(c);}return t;}
+function buildSledLane(cx,cz){
+  const g=new THREE.Group(), L=15, W=1.5;
+  /* Hyrox-branded carpet (canvas texture) */
+  const cv=document.createElement("canvas");cv.width=1024;cv.height=120;const c=cv.getContext("2d");
+  c.fillStyle="#1b1d22";c.fillRect(0,0,1024,120);
+  c.fillStyle="#d23b2e";c.fillRect(0,0,46,120);c.fillRect(978,0,46,120);
+  c.strokeStyle="rgba(255,255,255,0.45)";c.lineWidth=3;for(let i=1;i<10;i++){c.beginPath();c.moveTo(i*102,8);c.lineTo(i*102,112);c.stroke();}
+  c.fillStyle="#eef0f2";c.textAlign="center";c.textBaseline="middle";
+  c.font="bold 50px Arial, sans-serif";c.fillText("H Y R O X",512,36);
+  c.font="bold 26px Arial, sans-serif";c.fillStyle="#d23b2e";c.fillText("OFFICIAL TRAINING SLED LANE  ·  15 m",512,82);
+  const tex=new THREE.CanvasTexture(cv);tex.anisotropy=4;
+  const carpet=new THREE.Mesh(new THREE.PlaneGeometry(L,W),new THREE.MeshStandardMaterial({map:tex,roughness:0.96}));
+  carpet.rotation.x=-Math.PI/2;carpet.position.set(cx,0.012,cz);carpet.receiveShadow=true;g.add(carpet);
+  /* 1 weight sled at the west end */
+  const sled=new THREE.Group();
+  sled.add(mv(box(0.62,0.09,1.05,0x2c2f35),0,0.06,0));
+  sled.add(mv(box(0.08,0.13,1.05,0x202227),-0.3,0.1,0));sled.add(mv(box(0.08,0.13,1.05,0x202227),0.3,0.1,0));
+  sled.add(mv(box(0.1,1.0,0.1,0x44474c),0,0.6,-0.15));sled.add(mv(box(0.5,0.1,0.1,0x44474c),0,1.06,-0.15));
+  for(let i=0;i<3;i++){const pl=cyl(0.27,0.27,0.07,0x222428,18);pl.rotation.x=Math.PI/2;pl.position.set(0,0.34+i*0.16,0.16);sled.add(pl);}
+  sled.position.set(cx-L/2+0.9,0,cz);g.add(sled);
+  const lb=makeLabel("Hyrox sled lane · 15 m");lb.position.set(cx,1.1,cz-1.0);g.add(lb);
+  return g;
+}
+function mv(m,x,y,z){m.position.set(x,y,z);return m;}
 function buildRain(){
   if(rainPts){scene.remove(rainPts);rainGeo.dispose();rainPts.material.dispose();rainPts=null;}
   RAIN_N=WEATHER[weather].rain||0; if(!RAIN_N)return;
@@ -762,6 +821,7 @@ function wireUI(){
   document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{const t=b.dataset.t;show[t]=!show[t];b.classList.toggle("on",show[t]);
     if(t==="grid")gridHelper.visible=show.grid;
     else if(t==="garden")gardenGroup.visible=show.garden;
+    else if(t==="attic"){if(houseGroup.userData.attic)houseGroup.userData.attic.visible=show.attic;}
     else if(t==="dims"){dimGroup.visible=show.dims;if(lotGroup&&lotGroup.userData.ld)lotGroup.userData.ld.visible=show.dims;}
     else {rebuildHouse();buildDims();}});
   $("#editToggle").onclick=()=>{editMode=!editMode;$("#editToggle").textContent="edit mode: "+(editMode?"on":"off");$("#editToggle").classList.toggle("on",editMode);if(!editMode){selectedId=null;clearHighlight();$("#panel").classList.remove("show");}};
