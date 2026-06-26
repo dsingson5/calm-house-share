@@ -234,7 +234,7 @@
       <button class="btn on" data-t="walls">Walls</button>
     </div>
     <div class="row">
-      <button class="btn" data-t="roof">Roof</button>
+      <button class="btn" data-t="roof">Hip roof</button>
       <button class="btn on" data-t="furniture">Furniture</button>
     </div>
     <div class="row">
@@ -247,6 +247,17 @@
     <div class="row">
       <button class="btn on" data-t="attic">Attic stock room</button>
     </div>
+    <div class="sep"></div>
+    <h4>Quake + typhoon proofing</h4>
+    <div class="row">
+      <button class="btn" data-r="shear">Shear walls</button>
+      <button class="btn" data-r="frame">Moment frame</button>
+    </div>
+    <div class="row">
+      <button class="btn" data-r="joints">Seismic joints</button>
+      <button class="btn" data-r="iso">Base isolation</button>
+    </div>
+    <div class="docknote">Single-storey RC shear-wall box · raft foundation · hip roof + hurricane ties. Turn on <b>Base isolation</b>, then run an M8 quake to see it absorb the shaking.</div>
     <div class="sep"></div>
     <h4>Edit</h4>
     <button class="btn full" id="editToggle">edit mode: off</button>
@@ -375,6 +386,8 @@ let houseGroup,groundGroup,lotGroup,gardenGroup,dimGroup,gridHelper;
 const roomGroups={}, floorMeshes=[];
 let selectionOutline=null, selectedId=null, editMode=false, wallHeight=2.7;
 const show={dims:true,walls:true,roof:false,furniture:true,labels:true,garden:true,grid:false,attic:true};
+/* earthquake + typhoon resilience layers (from the engineering brief) */
+const res={shear:false,frame:false,joints:false,iso:false};
 const CENTROID={x:13.5,z:6.0};   /* the open social core — bedroom doors face toward it */
 
 /* sun path + day/night */
@@ -486,8 +499,6 @@ function buildRoom(r){
   } else if(show.walls){ const ds=doorSide(r),h=wallHeight;
     buildWall(g,r.x,r.z,r.x+r.w,r.z,h,ds==="N");buildWall(g,r.x,r.z+r.d,r.x+r.w,r.z+r.d,h,ds==="S");
     buildWall(g,r.x,r.z,r.x,r.z+r.d,h,ds==="W");buildWall(g,r.x+r.w,r.z,r.x+r.w,r.z+r.d,h,ds==="E"); }
-  if(show.roof&&r.wall!==false){const roof=box(r.w+0.1,0.12,r.d+0.1,0xe7ddc9,{op:0.96});roof.position.set(r.x+r.w/2,wallHeight+0.06,r.z+r.d/2);g.add(roof);
-    if(r.id==="living"||r.id==="train"){for(let i=0;i<2;i++)for(let j=0;j<2;j++){const pv=box(1.6,0.05,1.0,0x16324a,{rough:0.4});pv.position.set(r.x+r.w/2-0.9+i*1.8,wallHeight+0.16,r.z+r.d/2-0.6+j*1.2);pv.rotation.x=-0.18;g.add(pv);}}}
   const fg=new THREE.Group();fg.userData.furn=true;addFurniture(fg,r);fg.visible=show.furniture;g.add(fg);
   const lb=makeLabel(r.name);lb.position.set(r.x+r.w/2,wallHeight+0.55,r.z+r.d/2);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   return g;
@@ -554,8 +565,7 @@ function rebuildHouse(){
   Object.values(roomGroups).forEach(g=>houseGroup.remove(g));for(const k in roomGroups)delete roomGroups[k];floorMeshes.length=0;
   ROOMS.forEach(r=>{if(r.hidden)return;const g=buildRoom(r);roomGroups[r.id]=g;houseGroup.add(g);});
   if(houseGroup.userData.slab)houseGroup.remove(houseGroup.userData.slab);
-  const slab=box(DESIGN.w+0.8,0.1,DESIGN.d+0.8,0xd9cdb6,{rough:1});slab.castShadow=false;
-  slab.position.set(DESIGN.minX+DESIGN.w/2,-0.02,DESIGN.minZ+DESIGN.d/2);houseGroup.add(slab);houseGroup.userData.slab=slab;
+  houseGroup.add(houseGroup.userData.slab=buildFoundation());    /* raft + grade beams + raised plinth */
   if(houseGroup.userData.attic)houseGroup.remove(houseGroup.userData.attic);
   const at=buildAttic();at.visible=show.attic;houseGroup.add(at);houseGroup.userData.attic=at;
   awnings.length=0;
@@ -563,7 +573,89 @@ function rebuildHouse(){
   const awnG=new THREE.Group();
   ROOMS.forEach(r=>{if(r.hidden)return;if(r.open||r.wall===false){const a=buildAwning(r);awnG.add(a.group);awnings.push(a);}});
   houseGroup.add(awnG);houseGroup.userData.awn=awnG;updateAwnings();
+  /* hip roof (typhoon) + structural-resilience overlays */
+  ["roofg","shear","frame","joints","iso"].forEach(k=>{if(houseGroup.userData[k])houseGroup.remove(houseGroup.userData[k]);});
+  const rf=buildHipRoof();rf.visible=show.roof;houseGroup.add(rf);houseGroup.userData.roofg=rf;
+  const sh=buildShearWalls();sh.visible=res.shear;houseGroup.add(sh);houseGroup.userData.shear=sh;
+  const fr=buildMomentFrame();fr.visible=res.frame;houseGroup.add(fr);houseGroup.userData.frame=fr;
+  const jo=buildSeismicJoints();jo.visible=res.joints;houseGroup.add(jo);houseGroup.userData.joints=jo;
+  const iso=buildBaseIsolation();iso.visible=res.iso;houseGroup.add(iso);houseGroup.userData.iso=iso;
   if(selectedId&&roomGroups[selectedId])highlight(selectedId);else clearHighlight();
+}
+function buildFoundation(){
+  const g=new THREE.Group();const w=DESIGN.w+1.0,d=DESIGN.d+1.0,cx=DESIGN.minX+DESIGN.w/2,cz=DESIGN.minZ+DESIGN.d/2;
+  const raft=box(w,0.5,d,0xc9bda4,{rough:1});raft.castShadow=false;raft.position.set(cx,-0.22,cz);g.add(raft);   /* thick mat/raft */
+  for(let i=0;i<=4;i++){const t=i/4;const gb=box(w,0.16,0.3,0xb6a987);gb.castShadow=false;gb.position.set(cx,-0.18,DESIGN.minZ+t*DESIGN.d);g.add(gb);
+    const gb2=box(0.3,0.16,d,0xb6a987);gb2.castShadow=false;gb2.position.set(DESIGN.minX+t*DESIGN.w,-0.18,cz);g.add(gb2);}   /* grade-beam grid */
+  const plY=0.16;                                                                                               /* raised plinth (FF above flood) */
+  g.add(mv(box(w,plY,0.18,0xd9cdb6),cx,plY/2+0.02,DESIGN.minZ-0.5));g.add(mv(box(w,plY,0.18,0xd9cdb6),cx,plY/2+0.02,DESIGN.minZ+DESIGN.d+0.5));
+  g.add(mv(box(0.18,plY,d,0xd9cdb6),DESIGN.minX-0.5,plY/2+0.02,cz));g.add(mv(box(0.18,plY,d,0xd9cdb6),DESIGN.minX+DESIGN.w+0.5,plY/2+0.02,cz));
+  g.add(mv(box(DESIGN.w+0.8,0.06,DESIGN.d+0.8,0xd9cdb6,{rough:1}),cx,0.03,cz));                                  /* floor slab on top */
+  return g;
+}
+function buildHipRoof(){
+  const g=new THREE.Group();
+  const x0=DESIGN.minX,x1=DESIGN.minX+DESIGN.w,z0=DESIGN.minZ,z1=DESIGN.minZ+DESIGN.d;
+  const xc=(x0+x1)/2,zc=(z0+z1)/2,oh=0.45,eY=wallHeight+0.2,rY=wallHeight+0.2+1.4,ri=Math.min(DESIGN.w,DESIGN.d)*0.3;
+  const ex0=x0-oh,ex1=x1+oh,ez0=z0-oh,ez1=z1+oh;
+  const eNW=[ex0,eY,ez0],eNE=[ex1,eY,ez0],eSE=[ex1,eY,ez1],eSW=[ex0,eY,ez1];
+  let rA,rB; if(DESIGN.w>=DESIGN.d){rA=[x0+ri,rY,zc];rB=[x1-ri,rY,zc];}else{rA=[xc,rY,z0+ri];rB=[xc,rY,z1-ri];}
+  const v=[],tri=(a,b,c)=>v.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]),quad=(a,b,c,d)=>{tri(a,b,c);tri(a,c,d);};
+  if(DESIGN.w>=DESIGN.d){quad(eNW,eNE,rB,rA);quad(eSE,eSW,rA,rB);tri(eNE,eSE,rB);tri(eSW,eNW,rA);}
+  else{quad(eNE,eSE,rB,rA);quad(eSW,eNW,rA,rB);tri(eSE,eSW,rB);tri(eNW,eNE,rA);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.Float32BufferAttribute(v,3));geo.computeVertexNormals();
+  const roof=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xb9bdc4,roughness:0.5,metalness:0.25,side:THREE.DoubleSide}));roof.castShadow=true;g.add(roof);
+  g.add(mv(box(Math.abs(rB[0]-rA[0])+0.2,0.1,Math.abs(rB[2]-rA[2])+0.2,0x9aa0a8),xc,rY+0.04,zc));   /* ridge cap */
+  /* continuous ring/tie-beam at wall top */
+  g.add(mv(box(DESIGN.w+0.24,0.22,0.2,0xcfc3a6),xc,wallHeight,z0));g.add(mv(box(DESIGN.w+0.24,0.22,0.2,0xcfc3a6),xc,wallHeight,z1));
+  g.add(mv(box(0.2,0.22,DESIGN.d+0.24,0xcfc3a6),x0,wallHeight,zc));g.add(mv(box(0.2,0.22,DESIGN.d+0.24,0xcfc3a6),x1,wallHeight,zc));
+  /* gutters + downspouts */
+  const gut=0x8a8f96;
+  g.add(mv(box(ex1-ex0,0.07,0.1,gut),xc,eY-0.06,ez0));g.add(mv(box(ex1-ex0,0.07,0.1,gut),xc,eY-0.06,ez1));
+  g.add(mv(box(0.1,0.07,ez1-ez0,gut),ex0,eY-0.06,zc));g.add(mv(box(0.1,0.07,ez1-ez0,gut),ex1,eY-0.06,zc));
+  for(const cx2 of[ex0,ex1])for(const cz2 of[ez0,ez1]){const dp=cyl(0.05,0.05,eY,gut,8);dp.castShadow=false;dp.position.set(cx2,eY/2,cz2);g.add(dp);}
+  /* hurricane ties at the eave (roof-to-wall straps) */
+  for(let i=0;i<=6;i++){const x=x0+i/6*DESIGN.w;g.add(mv(box(0.07,0.2,0.1,0x6b7076),x,wallHeight+0.1,z0));g.add(mv(box(0.07,0.2,0.1,0x6b7076),x,wallHeight+0.1,z1));}
+  /* solar on south slope */
+  for(let i=0;i<3;i++){const pv=box(1.5,0.05,1.1,0x16324a,{rough:0.4});pv.position.set(xc-1.7+i*1.7,eY+0.55,zc+1.6);pv.rotation.x=0.55;g.add(pv);}
+  const lb=makeLabel("Hip roof · light metal + hurricane ties");lb.position.set(xc,rY+0.95,zc);lb.visible=show.labels;g.add(lb);
+  return g;
+}
+function buildShearWalls(){
+  const g=new THREE.Group();const h=wallHeight,col=0x8f99a6,th=0.3,len=2.4;
+  const x0=DESIGN.minX,x1=DESIGN.minX+DESIGN.w,z0=DESIGN.minZ,z1=DESIGN.minZ+DESIGN.d;
+  const seg=(w,d,x,z)=>{const m=box(w,h,d,col,{rough:0.9});m.position.set(x,h/2,z);g.add(m);};
+  [[x0,z0,1,1],[x1,z0,-1,1],[x1,z1,-1,-1],[x0,z1,1,-1]].forEach(c=>{const x=c[0],z=c[1],sx=c[2],sz=c[3];seg(len,th,x+sx*len/2,z+sz*th/2);seg(th,len,x+sx*th/2,z+sz*len/2);});
+  seg(th,3.0,DESIGN.minX+4.5,z0+3.0);seg(th,3.0,DESIGN.minX+4.5,z1-3.0);
+  const lb=makeLabel("RC shear-wall box");lb.position.set((x0+x1)/2,h+0.4,z0+0.6);lb.visible=show.labels;g.add(lb);
+  return g;
+}
+function buildMomentFrame(){
+  const g=new THREE.Group();const h=wallHeight,col=0x7d8896,cs=0.22;
+  let mnx=Infinity,mnz=Infinity,mxx=-Infinity,mxz=-Infinity;
+  ROOMS.forEach(r=>{if(r.open||r.wall===false){mnx=Math.min(mnx,r.x);mnz=Math.min(mnz,r.z);mxx=Math.max(mxx,r.x+r.w);mxz=Math.max(mxz,r.z+r.d);}});
+  const nx=3,nz=3,colM=(x,z)=>{const m=box(cs,h,cs,col,{metal:0.3,rough:0.5});m.position.set(x,h/2,z);g.add(m);};
+  for(let i=0;i<=nx;i++)for(let j=0;j<=nz;j++)colM(mnx+(mxx-mnx)*i/nx,mnz+(mxz-mnz)*j/nz);
+  for(let j=0;j<=nz;j++){const z=mnz+(mxz-mnz)*j/nz;const m=box(mxx-mnx,0.22,cs,col,{metal:0.3,rough:0.5});m.position.set((mnx+mxx)/2,h-0.11,z);g.add(m);}
+  for(let i=0;i<=nx;i++){const x=mnx+(mxx-mnx)*i/nx;const m=box(cs,0.22,mxz-mnz,col,{metal:0.3,rough:0.5});m.position.set(x,h-0.11,(mnz+mxz)/2);g.add(m);}
+  const lb=makeLabel("Moment-resisting frame (open core)");lb.position.set((mnx+mxx)/2,h+0.5,(mnz+mxz)/2);lb.visible=show.labels;g.add(lb);
+  return g;
+}
+function buildSeismicJoints(){
+  const g=new THREE.Group();const h=wallHeight+0.5,col=0xc0392b;
+  const x0=DESIGN.minX,z0=DESIGN.minZ,z1=DESIGN.minZ+DESIGN.d;
+  const jx=box(0.06,h,DESIGN.d,col,{op:0.5});jx.castShadow=false;jx.position.set(x0+10.7,h/2,(z0+z1)/2);g.add(jx);
+  const jz=box(DESIGN.w,h,0.06,col,{op:0.5});jz.castShadow=false;jz.position.set(x0+DESIGN.w/2,h/2,z0+8.7);g.add(jz);
+  const lb=makeLabel("seismic separation joints","dim");lb.position.set(x0+DESIGN.w/2,h+0.4,z0+8.7);g.add(lb);
+  return g;
+}
+function buildBaseIsolation(){
+  const g=new THREE.Group();const x0=DESIGN.minX,x1=DESIGN.minX+DESIGN.w,z0=DESIGN.minZ,z1=DESIGN.minZ+DESIGN.d,nx=4,nz=3;
+  for(let i=0;i<=nx;i++)for(let j=0;j<=nz;j++){const x=x0+(x1-x0)*i/nx,z=z0+(z1-z0)*j/nz;
+    const b=cyl(0.28,0.32,0.42,0x2b2e33,16);b.castShadow=false;b.position.set(x,-0.74,z);g.add(b);
+    for(let k=0;k<3;k++){const sh=cyl(0.31,0.31,0.03,0x9aa0a8,16);sh.castShadow=false;sh.position.set(x,-0.88+k*0.16,z);g.add(sh);}}
+  const lb=makeLabel("Base isolation (LRB bearings)","dim");lb.position.set((x0+x1)/2,0.55,(z0+z1)/2);g.add(lb);
+  return g;
 }
 function highlight(id){clearHighlight();const r=ROOMS.find(x=>x.id===id);if(!r)return;
   const edges=new THREE.EdgesGeometry(new THREE.BoxGeometry(r.w+0.06,wallHeight+0.1,r.d+0.06));
@@ -660,21 +752,23 @@ function buildSledLane(cx,cz){
 }
 function mv(m,x,y,z){m.position.set(x,y,z);return m;}
 function buildGreenhouse(px,pz){
+  /* detached, seismically-separated, low-profile: 16mm POLYCARBONATE on a STEEL frame, on its own slab */
   const g=new THREE.Group();
-  const gw=2.4, gd=2.8, wh=1.9, ridge=0.75, frame=0xeae7df;
-  const glass=mat(0xc3e2da,{op:0.26,rough:0.08});
-  g.add(mv(box(gw+0.12,0.18,gd+0.12,0x8a7a5c,{rough:1}),0,0.09,0));   /* plinth */
-  const wall=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),glass);m.castShadow=false;m.position.set(x,y,z);g.add(m);};
-  wall(gw,wh,0.05,0,wh/2+0.18,-gd/2);wall(gw,wh,0.05,0,wh/2+0.18,gd/2);
-  wall(0.05,wh,gd,-gw/2,wh/2+0.18,0);wall(0.05,wh,gd,gw/2,wh/2+0.18,0);
-  for(const x of[-gw/2,gw/2])for(const z of[-gd/2,gd/2])g.add(mv(box(0.07,wh,0.07,frame),x,wh/2+0.18,z));
-  const roofP=(rx)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(gw+0.12,0.04,gd*0.64),glass);m.castShadow=false;m.position.set(0,wh+0.18+ridge*0.5,rx*gd*0.26);m.rotation.x=rx*0.62;g.add(m);};
+  const gw=2.4, gd=2.8, wh=1.5, ridge=0.55, steel=0x9aa0a8;
+  const poly=mat(0xdcebe2,{op:0.4,rough:0.35});                            /* translucent polycarbonate (not glass) */
+  g.add(mv(box(gw+0.4,0.22,gd+0.4,0x9c9486,{rough:1}),0,0.11,0));          /* own concrete footing slab (separated) */
+  const wall=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),poly);m.castShadow=false;m.position.set(x,y,z);g.add(m);};
+  wall(gw,wh,0.05,0,wh/2+0.22,-gd/2);wall(gw,wh,0.05,0,wh/2+0.22,gd/2);
+  wall(0.05,wh,gd,-gw/2,wh/2+0.22,0);wall(0.05,wh,gd,gw/2,wh/2+0.22,0);
+  /* steel frame: corner posts + base rails + eave rails */
+  for(const x of[-gw/2,gw/2])for(const z of[-gd/2,gd/2])g.add(mv(box(0.06,wh,0.06,steel),x,wh/2+0.22,z));
+  for(const z of[-gd/2,gd/2]){g.add(mv(box(gw,0.05,0.05,steel),0,0.24,z));g.add(mv(box(gw,0.05,0.05,steel),0,wh+0.2,z));}
+  const roofP=(rx)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(gw+0.12,0.04,gd*0.62),poly);m.castShadow=false;m.position.set(0,wh+0.22+ridge*0.5,rx*gd*0.26);m.rotation.x=rx*0.62;g.add(m);};
   roofP(-1);roofP(1);
-  g.add(mv(box(gw+0.16,0.06,0.06,frame),0,wh+0.18+ridge,0));               /* ridge */
-  g.add(mv(box(gw-0.4,0.5,0.5,0x8a6f4a,{rough:0.95}),0,0.4,-gd/2+0.5));     /* potting bench */
-  for(let i=0;i<4;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),mat([0x5f7a3a,0x6f8a44][i%2]));p.scale.y=0.85;p.position.set(-0.66+i*0.44,0.78,-gd/2+0.5);g.add(p);}
-  g.add(mv(box(0.6,wh-0.2,0.05,frame),0,(wh-0.2)/2+0.18,gd/2+0.02));        /* door frame */
-  const lb=makeLabel("Greenhouse");lb.position.set(0,wh+ridge+0.7,0);g.add(lb);
+  g.add(mv(box(gw+0.16,0.05,0.05,steel),0,wh+0.22+ridge,0));               /* steel ridge */
+  g.add(mv(box(gw-0.4,0.45,0.5,0x8a6f4a,{rough:0.95}),0,0.46,-gd/2+0.5));  /* potting bench */
+  for(let i=0;i<4;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,6),mat([0x5f7a3a,0x6f8a44][i%2]));p.scale.y=0.85;p.position.set(-0.66+i*0.44,0.8,-gd/2+0.5);g.add(p);}
+  const lb=makeLabel("Greenhouse · polycarbonate (detached)");lb.position.set(0,wh+ridge+0.7,0);g.add(lb);
   g.position.set(px,0,pz);return g;
 }
 function buildRain(){
@@ -798,7 +892,7 @@ function updateLightning(){
 }
 /* ---- earthquake ---- */
 function triggerQuake(mag){
-  quake.mag=mag;quake.amp=0.02*Math.pow(10,(mag-3)*0.30);quake.dur=2.6+(mag-3)*1.7;
+  quake.mag=mag;quake.amp=0.02*Math.pow(10,(mag-3)*0.30)*(res.iso?0.25:1);quake.dur=2.6+(mag-3)*1.7;
   quake.t=0;quake.active=true;syncQuakeUI();
 }
 function updateQuake(){
@@ -877,8 +971,11 @@ function wireUI(){
     if(t==="grid")gridHelper.visible=show.grid;
     else if(t==="garden")gardenGroup.visible=show.garden;
     else if(t==="attic"){if(houseGroup.userData.attic)houseGroup.userData.attic.visible=show.attic;}
+    else if(t==="roof"){if(houseGroup.userData.roofg)houseGroup.userData.roofg.visible=show.roof;}
     else if(t==="dims"){dimGroup.visible=show.dims;if(lotGroup&&lotGroup.userData.ld)lotGroup.userData.ld.visible=show.dims;}
     else {rebuildHouse();buildDims();}});
+  document.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{const k=b.dataset.r;res[k]=!res[k];b.classList.toggle("on",res[k]);
+    if(houseGroup.userData[k])houseGroup.userData[k].visible=res[k];});
   $("#editToggle").onclick=()=>{editMode=!editMode;$("#editToggle").textContent="edit mode: "+(editMode?"on":"off");$("#editToggle").classList.toggle("on",editMode);if(!editMode){selectedId=null;clearHighlight();$("#panel").classList.remove("show");}};
   $("#panelClose").onclick=()=>{selectedId=null;clearHighlight();$("#panel").classList.remove("show");};
   document.querySelectorAll(".stepper button").forEach(b=>b.onclick=()=>editField(b.dataset.e,+b.dataset.d));
