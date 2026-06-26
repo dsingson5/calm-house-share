@@ -334,10 +334,10 @@ const ROOMS = [
   { id:"family",  name:"Future-Family Room",  zone:"family",  x:4.6,  z:3.8, w:3.0, d:3.4, furn:"bed" },
   { id:"flex",    name:"Flex · 5th Bedroom",  zone:"flex",    x:7.6,  z:3.8, w:3.0, d:3.4, furn:"bed" },
   /* ---- master support + service ---- */
-  { id:"dress",   name:"Dressing Room",       zone:"dress",   x:0.0,  z:3.8, w:2.2, d:2.6, furn:"wardrobe" },
-  { id:"ensuite", name:"En-suite",            zone:"bath",    x:2.2,  z:3.8, w:2.2, d:2.6, furn:"bath" },
-  { id:"gbath",   name:"Guest Bath",          zone:"bath",    x:0.0,  z:6.6, w:2.1, d:1.7, furn:"bath" },
-  { id:"utility", name:"Laundry / Store",     zone:"util",    x:2.2,  z:6.6, w:2.2, d:1.7, furn:"util" }
+  { id:"ensuite", name:"En-suite",            zone:"bath",    x:0.0,  z:3.8, w:2.2, d:2.6, furn:"bath" },
+  { id:"dress",   name:"Dressing Room",       zone:"dress",   x:2.2,  z:3.8, w:2.2, d:2.6, furn:"wardrobe" },
+  { id:"gbath",   name:"Guest Bath",          zone:"bath",    x:0.0,  z:6.4, w:2.1, d:1.7, furn:"bath" },
+  { id:"utility", name:"Laundry / Store",     zone:"util",    x:2.2,  z:6.4, w:2.2, d:1.7, furn:"util" }
 ];
 const ZONES = {
   living:{floor:0xEBC98C,why:"East-facing hub — open to kitchen & veranda so everyone's together."},
@@ -389,6 +389,9 @@ const show={dims:true,walls:true,roof:false,furniture:true,labels:true,garden:tr
 /* earthquake + typhoon resilience layers (from the engineering brief) */
 const res={shear:false,frame:false,joints:false,iso:false};
 const CENTROID={x:13.5,z:6.0};   /* the open social core — bedroom doors face toward it */
+/* interior doorways between specific rooms (in addition to the open-core–facing door).
+   The dressing room is the master-suite spine: master bedroom ↔ dressing room ↔ laundry. */
+const CONNECTIONS=[["master","dress"],["dress","utility"]];
 
 /* sun path + day/night */
 let sunLight, hemiLight, ambLight, fillLight, skySun, moonSprite;
@@ -434,17 +437,39 @@ function makeLabel(text,kind){
 }
 function wallSeg(ax,az,bx,bz,h){const dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz);if(len<0.05)return null;
   const m=box(len,h,0.12,0xeee4d2,{rough:0.95});m.position.set((ax+bx)/2,h/2,(az+bz)/2);m.rotation.y=-Math.atan2(dz,dx);return m;}
+/* door = false/undefined → solid wall · true → door centred · number → door centred at that
+   distance along a→b (so coincident walls of different lengths can share an aligned opening). */
 function buildWall(g,ax,az,bx,bz,h,door){
-  if(!door){const w=wallSeg(ax,az,bx,bz,h);if(w)g.add(w);return;}
   const dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz),gap=1.0;
+  if(door===false||door==null){const w=wallSeg(ax,az,bx,bz,h);if(w)g.add(w);return;}
   if(len<=gap+0.5){const w=wallSeg(ax,az,bx,bz,h);if(w)g.add(w);return;}
-  const ux=dx/len,uz=dz/len,c1=(len-gap)/2,c2=(len+gap)/2;
+  const ux=dx/len,uz=dz/len,dc=clamp(door===true?len/2:door,gap/2+0.2,len-gap/2-0.2),c1=dc-gap/2,c2=dc+gap/2;
   let s=wallSeg(ax,az,ax+ux*c1,az+uz*c1,h);if(s)g.add(s);
   s=wallSeg(ax+ux*c2,az+uz*c2,bx,bz,h);if(s)g.add(s);
-  const lint=box(gap,0.32,0.12,0xeee4d2);lint.position.set(ax+ux*len/2,h-0.16,az+uz*len/2);lint.rotation.y=-Math.atan2(dz,dx);g.add(lint);
+  const lint=box(gap,0.32,0.12,0xeee4d2);lint.position.set(ax+ux*dc,h-0.16,az+uz*dc);lint.rotation.y=-Math.atan2(dz,dx);g.add(lint);
 }
 function doorSide(r){const cx=r.x+r.w/2,cz=r.z+r.d/2,dx=CENTROID.x-cx,dz=CENTROID.z-cz;
   if(Math.abs(dx)>Math.abs(dz))return dx>0?"E":"W";return dz>0?"S":"N";}
+/* if rooms r and o share a wall, return {side of r, door-centre distance along that wall} */
+function roomAdj(r,o){
+  const TOL=0.3,rL=r.x,rR=r.x+r.w,rT=r.z,rB=r.z+r.d,oL=o.x,oR=o.x+o.w,oT=o.z,oB=o.z+o.d;
+  if(Math.abs(rR-oL)<=TOL){const a=Math.max(rT,oT),b=Math.min(rB,oB);if(b-a>0.6)return{side:"E",c:(a+b)/2-r.z};}
+  if(Math.abs(rL-oR)<=TOL){const a=Math.max(rT,oT),b=Math.min(rB,oB);if(b-a>0.6)return{side:"W",c:(a+b)/2-r.z};}
+  if(Math.abs(rB-oT)<=TOL){const a=Math.max(rL,oL),b=Math.min(rR,oR);if(b-a>0.6)return{side:"S",c:(a+b)/2-r.x};}
+  if(Math.abs(rT-oB)<=TOL){const a=Math.max(rL,oL),b=Math.min(rR,oR);if(b-a>0.6)return{side:"N",c:(a+b)/2-r.x};}
+  return null;
+}
+/* doorways for room r: the open-core–facing door, plus any explicit CONNECTIONS */
+function roomOpenings(r){
+  const op={},ds=doorSide(r);
+  op[ds]=(ds==="N"||ds==="S")?r.w/2:r.d/2;
+  for(const pair of CONNECTIONS){
+    const other=pair[0]===r.id?pair[1]:(pair[1]===r.id?pair[0]:null);if(!other)continue;
+    const o=ROOMS.find(x=>x.id===other);if(!o||o.hidden)continue;
+    const a=roomAdj(r,o);if(a)op[a.side]=a.c;
+  }
+  return op;
+}
 function addFurniture(fg,r){
   const cx=r.x+r.w/2,cz=r.z+r.d/2,wood=0x9c7b54,fab=0x8a8f7c,dark=0x55514a,cedar=0xc08a4e,steel=0x8d8d90;
   const put=(m,x,y,z)=>{m.position.set(x,y,z);fg.add(m);};
@@ -496,9 +521,9 @@ function buildRoom(r){
     for(const px of[r.x+0.2,r.x+r.w-0.2])for(const pz of[r.z+0.2,r.z+r.d-0.2]){const p=box(0.16,wallHeight,0.16,0xa07c4e);p.position.set(px,wallHeight/2,pz);g.add(p);}
     for(let i=0;i<=5;i++){const b=box(r.w+0.2,0.08,0.1,0xa07c4e);b.position.set(r.x+r.w/2,wallHeight,r.z+0.2+i*((r.d-0.4)/5));g.add(b);}
     const rail=box(r.w,0.1,0.1,0xa07c4e);rail.position.set(r.x+r.w/2,0.5,r.z+r.d-0.1);g.add(rail);
-  } else if(show.walls){ const ds=doorSide(r),h=wallHeight;
-    buildWall(g,r.x,r.z,r.x+r.w,r.z,h,ds==="N");buildWall(g,r.x,r.z+r.d,r.x+r.w,r.z+r.d,h,ds==="S");
-    buildWall(g,r.x,r.z,r.x,r.z+r.d,h,ds==="W");buildWall(g,r.x+r.w,r.z,r.x+r.w,r.z+r.d,h,ds==="E"); }
+  } else if(show.walls){ const op=roomOpenings(r),h=wallHeight;
+    buildWall(g,r.x,r.z,r.x+r.w,r.z,h,op.N);buildWall(g,r.x,r.z+r.d,r.x+r.w,r.z+r.d,h,op.S);
+    buildWall(g,r.x,r.z,r.x,r.z+r.d,h,op.W);buildWall(g,r.x+r.w,r.z,r.x+r.w,r.z+r.d,h,op.E); }
   const fg=new THREE.Group();fg.userData.furn=true;addFurniture(fg,r);fg.visible=show.furniture;g.add(fg);
   const lb=makeLabel(r.name);lb.position.set(r.x+r.w/2,wallHeight+0.55,r.z+r.d/2);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   return g;
@@ -542,11 +567,10 @@ function stripeTexture(){
   for(let i=0;i<8;i++){c.fillStyle=(i%2)?"#efe2cb":"#c8704a";c.fillRect(i*32,0,32,64);}
   const t=new THREE.CanvasTexture(cv);t.anisotropy=4;return t;
 }
-function buildAwning(r){
+/* a retractable awning canopy: back roller at the origin, fabric extends +z, folds via scale.z */
+function makeAwning(w,d){
   if(!stripeTex)stripeTex=stripeTexture();
   const g=new THREE.Group();
-  const w=Math.max(0.8,r.w-0.3), d=Math.max(0.8,r.d-0.2);
-  g.position.set(r.x+r.w/2, wallHeight-0.06, r.z+0.12);   /* pivot at the back (north) roller */
   const roller=cyl(0.08,0.08,w,0xa07c4e,10);roller.rotation.z=Math.PI/2;roller.castShadow=false;roller.position.set(0,0.07,0);g.add(roller);
   const fab=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshStandardMaterial({map:stripeTex,side:THREE.DoubleSide,roughness:0.9}));
   fab.rotation.x=-Math.PI/2+0.14;fab.position.set(0,-(d/2)*0.14,d/2);fab.castShadow=false;fab.receiveShadow=false;g.add(fab);
@@ -554,7 +578,34 @@ function buildAwning(r){
   /* accordion battens — they compress toward the roller as the awning folds */
   const ribs=Math.max(3,Math.round(d/0.55));
   for(let i=1;i<ribs;i++){const t=i/ribs;const rb=cyl(0.045,0.045,w,0x9a6f44,8);rb.rotation.z=Math.PI/2;rb.castShadow=false;rb.position.set(0,-d*0.14*t,d*t);g.add(rb);}
-  return {group:g};
+  return g;
+}
+/* freestanding outdoor awning (Hyrox sled lane + kids' play): canopy at height h on a post frame.
+   Returns {group:canopy (foldable, pushed to awnings[]), root:placed frame}. */
+function buildOutdoorAwning(cx,cz,w,d,h,rotY){
+  h=h||2.5;const root=new THREE.Group();
+  const aw=makeAwning(w,d);aw.position.y=h;root.add(aw);
+  const post=(x,z)=>{const p=box(0.1,h,0.1,0x8a6a44);p.castShadow=true;p.position.set(x,h/2,z);root.add(p);};
+  const nP=Math.max(1,Math.round(w/4));
+  for(let i=0;i<=nP;i++){const x=-w/2+0.08+(w-0.16)*i/nP;post(x,0);post(x,d);}
+  root.position.set(cx,0,cz);if(rotY)root.rotation.y=rotY;
+  return {group:aw,root:root};
+}
+/* a small outdoor kids' play area: soft mat, slide, spring rocker, sandbox */
+function buildKidsPlay(cx,cz,w,d){
+  const g=new THREE.Group();
+  const m0=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat(0x7ec06a,{rough:1}));m0.rotation.x=-Math.PI/2;m0.position.set(0,0.012,0);m0.receiveShadow=true;g.add(m0);
+  const slide=new THREE.Group();                                   /* ladder + slope */
+  for(const sx of[-0.28,0.28])slide.add(mv(box(0.07,0.95,0.07,0xc85c5c),sx,0.48,-0.5));
+  slide.add(mv(box(0.62,0.07,0.62,0xe0a93a),0,0.93,-0.5));
+  const ramp=box(0.6,0.05,1.5,0x3d8fb0);ramp.position.set(0,0.5,0.25);ramp.rotation.x=0.5;slide.add(ramp);
+  slide.position.set(-w/2+0.9,0,d/2-0.9);g.add(slide);
+  const rocker=new THREE.Group();                                  /* spring rocker */
+  rocker.add(mv(box(0.5,0.18,0.95,0xd9a33a),0,0.55,0));rocker.add(mv(cyl(0.05,0.05,0.4,0x9a7fae,8),0,0.3,0));
+  rocker.add(mv(box(0.12,0.3,0.12,0x6f8a44),0,0.74,-0.4));rocker.position.set(w/2-0.9,0,-d/2+0.9);g.add(rocker);
+  g.add(mv(box(1.3,0.16,1.3,0xe6d6a0,{rough:1}),w/2-1.1,0.08,d/2-1.0));   /* sandbox (under the shade) */
+  const lb=makeLabel("Kids' play area");lb.position.set(0,2.1,0);lb.visible=show.labels;g.add(lb);
+  g.position.set(cx,0,cz);return g;
 }
 function updateAwnings(){
   const e=Math.max(0.012,awningExt);awnings.forEach(a=>a.group.scale.z=e);
@@ -568,11 +619,8 @@ function rebuildHouse(){
   houseGroup.add(houseGroup.userData.slab=buildFoundation());    /* raft + grade beams + raised plinth */
   if(houseGroup.userData.attic)houseGroup.remove(houseGroup.userData.attic);
   const at=buildAttic();at.visible=show.attic;houseGroup.add(at);houseGroup.userData.attic=at;
-  awnings.length=0;
-  if(houseGroup.userData.awn)houseGroup.remove(houseGroup.userData.awn);
-  const awnG=new THREE.Group();
-  ROOMS.forEach(r=>{if(r.hidden)return;if(r.open||r.wall===false){const a=buildAwning(r);awnG.add(a.group);awnings.push(a);}});
-  houseGroup.add(awnG);houseGroup.userData.awn=awnG;updateAwnings();
+  /* awnings now live outdoors only (Hyrox sled lane + kids' play) — built in buildGardenAndTrees */
+  if(houseGroup.userData.awn){houseGroup.remove(houseGroup.userData.awn);houseGroup.userData.awn=null;}
   /* hip roof (typhoon) + structural-resilience overlays */
   ["roofg","shear","frame","joints","iso"].forEach(k=>{if(houseGroup.userData[k])houseGroup.remove(houseGroup.userData[k]);});
   const rf=buildHipRoof();rf.visible=show.roof;houseGroup.add(rf);houseGroup.userData.roofg=rf;
@@ -596,7 +644,8 @@ function buildFoundation(){
 function buildHipRoof(){
   const g=new THREE.Group();
   const x0=DESIGN.minX,x1=DESIGN.minX+DESIGN.w,z0=DESIGN.minZ,z1=DESIGN.minZ+DESIGN.d;
-  const xc=(x0+x1)/2,zc=(z0+z1)/2,oh=0.45,eY=wallHeight+0.2,rY=wallHeight+0.2+1.4,ri=Math.min(DESIGN.w,DESIGN.d)*0.3;
+  const span=Math.min(DESIGN.w,DESIGN.d);   /* proportion the roof to the footprint, not a flat cap */
+  const xc=(x0+x1)/2,zc=(z0+z1)/2,oh=clamp(span*0.05,0.5,0.9),eY=wallHeight+0.2,rY=eY+clamp(span*0.27,1.8,4.0),ri=span*0.32;
   const ex0=x0-oh,ex1=x1+oh,ez0=z0-oh,ez1=z1+oh;
   const eNW=[ex0,eY,ez0],eNE=[ex1,eY,ez0],eSE=[ex1,eY,ez1],eSW=[ex0,eY,ez1];
   let rA,rB; if(DESIGN.w>=DESIGN.d){rA=[x0+ri,rY,zc];rB=[x1-ri,rY,zc];}else{rA=[xc,rY,z0+ri];rB=[xc,rY,z1-ri];}
@@ -694,6 +743,7 @@ function buildLot(){
 }
 function buildGardenAndTrees(){
   if(gardenGroup)scene.remove(gardenGroup);gardenGroup=new THREE.Group();scene.add(gardenGroup);
+  awnings.length=0;   /* the only awnings are the outdoor ones below */
   const lot=LOCS[LOC].lot, halfW=lot.w/2, halfD=lot.d/2;
   /* carport + car + solar, tucked at the front-east corner */
   const cp=new THREE.Group();
@@ -706,7 +756,17 @@ function buildGardenAndTrees(){
   for(const wx of[-0.8,0.8])for(const wz of[-1.05,1.05]){const wl=cyl(0.32,0.32,0.25,0x1a1a1a,16);wl.rotation.z=Math.PI/2;wl.position.set(wx,0.32,wz);car.add(wl);}
   cp.add(car);cp.position.set(WC.x+halfW-2.0,0,WC.z+halfD-2.6);gardenGroup.add(cp);
   /* 15 m Hyrox-branded sled lane + 1 sled, across the front (in front of the open gym) */
-  gardenGroup.add(buildSledLane(WC.x, WC.z+halfD-1.3));
+  const slz=WC.z+halfD-1.3;
+  gardenGroup.add(buildSledLane(WC.x, slz));
+  /* shade awning over the Hyrox sled lane */
+  const sledAwn=buildOutdoorAwning(WC.x, slz-1.3, 15.4, 2.6, 2.7);
+  gardenGroup.add(sledAwn.root);awnings.push(sledAwn);
+  /* kids' play area in the open side yard, with its own shade awning */
+  const hsRight=d2wx(DESIGN.minX+DESIGN.w), sideYard=(WC.x+halfW)-hsRight;
+  const kpW=clamp(sideYard-0.8,1.6,3.4), kpD=4.0, kpx=hsRight+sideYard/2, kpz=WC.z-0.3;
+  gardenGroup.add(buildKidsPlay(kpx,kpz,kpW,kpD));
+  const kidsAwn=buildOutdoorAwning(kpx, kpz, Math.min(kpW-0.2,2.4), 2.0, 2.3);
+  gardenGroup.add(kidsAwn.root);awnings.push(kidsAwn);
   /* vegetable garden — raised beds along the back hedge */
   for(let r=0;r<4;r++){const bx=WC.x-halfW+2.0+r*2.6, bz=WC.z-halfD+1.0;
     const bed=box(2.3,0.22,0.6,0x6b5a3f);bed.position.set(bx,0.11,bz);gardenGroup.add(bed);
@@ -723,6 +783,7 @@ function buildGardenAndTrees(){
   const tx=halfW+2.2, tz=halfD+2.2, ph=[0.4,1.7,3.1,4.5,5.6,2.3];
   [[-tx,-tz],[tx,-tz],[-tx,tz],[tx,tz],[tx,0],[-tx,0]].forEach((p,i)=>{
     const t=makeTree();t.position.set(WC.x+p[0],0,WC.z+p[1]);t.userData.ph=ph[i%ph.length];treeSwayers.push(t);gardenGroup.add(t);});
+  updateAwnings();
   gardenGroup.visible=show.garden;
 }
 function makeTree(){const t=new THREE.Group();const tr=cyl(0.16,0.22,1.4,0x7c5a3a,8);tr.position.set(0,0.7,0);t.add(tr);
