@@ -193,6 +193,11 @@
       <button class="btn" data-sun="21">Night</button>
     </div>
     <button class="btn full" id="sunPlay">▶ Animate the day</button>
+    <div class="slider" style="margin-top:7px;">
+      <label>Retractable awning <span id="awnVal">100%</span></label>
+      <input type="range" id="awn" min="0" max="100" step="1" value="100" />
+    </div>
+    <button class="btn full" id="awnFold">⇕ Fold awnings</button>
     <div class="sep"></div>
     <h4>Weather</h4>
     <div class="row">
@@ -391,6 +396,8 @@ const WEATHER={
   thunder:{ sunMul:0.22, hemiMul:0.46, sky:[70,74,84],    skyAmt:0.84, fogNear:16, fogFar:85,  fog:[88,92,102],   fogAmt:0.74,wind:1.1,  rain:4200 }
 };
 const quake={active:false,mag:6,t:0,dur:0,amp:0,cam:[0,0,0]};
+/* retractable awning over the open spaces (0..1 extended); awningTarget animates the accordion fold */
+let awningExt=1, awningTarget=1, stripeTex=null; const awnings=[];
 
 const matCache={};
 function mat(c,o){o=o||{};const k=c+"|"+(o.rough||0.9)+"|"+(o.op||1)+"|"+(o.emissive||0);
@@ -519,6 +526,30 @@ function buildAttic(){
   const lb=makeLabel("Attic · Stock Room","room");lb.position.set(ax+aw/2,base+h+0.7,az+ad/2);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   return g;
 }
+function stripeTexture(){
+  const cv=document.createElement("canvas");cv.width=256;cv.height=64;const c=cv.getContext("2d");
+  for(let i=0;i<8;i++){c.fillStyle=(i%2)?"#efe2cb":"#c8704a";c.fillRect(i*32,0,32,64);}
+  const t=new THREE.CanvasTexture(cv);t.anisotropy=4;return t;
+}
+function buildAwning(r){
+  if(!stripeTex)stripeTex=stripeTexture();
+  const g=new THREE.Group();
+  const w=Math.max(0.8,r.w-0.3), d=Math.max(0.8,r.d-0.2);
+  g.position.set(r.x+r.w/2, wallHeight-0.06, r.z+0.12);   /* pivot at the back (north) roller */
+  const roller=cyl(0.08,0.08,w,0xa07c4e,10);roller.rotation.z=Math.PI/2;roller.castShadow=false;roller.position.set(0,0.07,0);g.add(roller);
+  const fab=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshStandardMaterial({map:stripeTex,side:THREE.DoubleSide,roughness:0.9}));
+  fab.rotation.x=-Math.PI/2+0.14;fab.position.set(0,-(d/2)*0.14,d/2);fab.castShadow=false;fab.receiveShadow=false;g.add(fab);
+  const bar=cyl(0.05,0.05,w,0x8a6a44,10);bar.rotation.z=Math.PI/2;bar.castShadow=false;bar.position.set(0,-d*0.14,d);g.add(bar);
+  /* accordion battens — they compress toward the roller as the awning folds */
+  const ribs=Math.max(3,Math.round(d/0.55));
+  for(let i=1;i<ribs;i++){const t=i/ribs;const rb=cyl(0.045,0.045,w,0x9a6f44,8);rb.rotation.z=Math.PI/2;rb.castShadow=false;rb.position.set(0,-d*0.14*t,d*t);g.add(rb);}
+  return {group:g};
+}
+function updateAwnings(){
+  const e=Math.max(0.012,awningExt);awnings.forEach(a=>a.group.scale.z=e);
+  const lb=document.getElementById("awnVal");if(lb)lb.textContent=Math.round(awningExt*100)+"%";
+  const sl=document.getElementById("awn");if(sl&&document.activeElement!==sl)sl.value=Math.round(awningExt*100);
+}
 function rebuildHouse(){
   Object.values(roomGroups).forEach(g=>houseGroup.remove(g));for(const k in roomGroups)delete roomGroups[k];floorMeshes.length=0;
   ROOMS.forEach(r=>{if(r.hidden)return;const g=buildRoom(r);roomGroups[r.id]=g;houseGroup.add(g);});
@@ -527,6 +558,11 @@ function rebuildHouse(){
   slab.position.set(DESIGN.minX+DESIGN.w/2,-0.02,DESIGN.minZ+DESIGN.d/2);houseGroup.add(slab);houseGroup.userData.slab=slab;
   if(houseGroup.userData.attic)houseGroup.remove(houseGroup.userData.attic);
   const at=buildAttic();at.visible=show.attic;houseGroup.add(at);houseGroup.userData.attic=at;
+  awnings.length=0;
+  if(houseGroup.userData.awn)houseGroup.remove(houseGroup.userData.awn);
+  const awnG=new THREE.Group();
+  ROOMS.forEach(r=>{if(r.hidden)return;if(r.open||r.wall===false){const a=buildAwning(r);awnG.add(a.group);awnings.push(a);}});
+  houseGroup.add(awnG);houseGroup.userData.awn=awnG;updateAwnings();
   if(selectedId&&roomGroups[selectedId])highlight(selectedId);else clearHighlight();
 }
 function highlight(id){clearHighlight();const r=ROOMS.find(x=>x.id===id);if(!r)return;
@@ -583,6 +619,7 @@ function buildGardenAndTrees(){
   for(let r=0;r<4;r++){const bx=WC.x-halfW+2.0+r*2.6, bz=WC.z-halfD+1.0;
     const bed=box(2.3,0.22,0.6,0x6b5a3f);bed.position.set(bx,0.11,bz);gardenGroup.add(bed);
     for(let c=0;c<5;c++){const v=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,6),mat([0x5f7a3a,0x6f8a44,0x7c9850][c%3]));v.scale.y=0.7;v.position.set(bx-0.8+c*0.4,0.32,bz);gardenGroup.add(v);}}
+  gardenGroup.add(buildGreenhouse(WC.x-halfW+1.7, WC.z+halfD-2.9));
   /* a calm patio in the south-west garden for morning coffee */
   const patio=new THREE.Mesh(new THREE.PlaneGeometry(4,3),mat(0xd6c6a4,{rough:1}));patio.rotation.x=-Math.PI/2;patio.position.set(WC.x+lot.w*0.22,-0.01,WC.z+halfD-2.2);patio.receiveShadow=true;gardenGroup.add(patio);
   /* flower beds near the corners */
@@ -622,6 +659,24 @@ function buildSledLane(cx,cz){
   return g;
 }
 function mv(m,x,y,z){m.position.set(x,y,z);return m;}
+function buildGreenhouse(px,pz){
+  const g=new THREE.Group();
+  const gw=2.4, gd=2.8, wh=1.9, ridge=0.75, frame=0xeae7df;
+  const glass=mat(0xc3e2da,{op:0.26,rough:0.08});
+  g.add(mv(box(gw+0.12,0.18,gd+0.12,0x8a7a5c,{rough:1}),0,0.09,0));   /* plinth */
+  const wall=(w,h,d,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),glass);m.castShadow=false;m.position.set(x,y,z);g.add(m);};
+  wall(gw,wh,0.05,0,wh/2+0.18,-gd/2);wall(gw,wh,0.05,0,wh/2+0.18,gd/2);
+  wall(0.05,wh,gd,-gw/2,wh/2+0.18,0);wall(0.05,wh,gd,gw/2,wh/2+0.18,0);
+  for(const x of[-gw/2,gw/2])for(const z of[-gd/2,gd/2])g.add(mv(box(0.07,wh,0.07,frame),x,wh/2+0.18,z));
+  const roofP=(rx)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(gw+0.12,0.04,gd*0.64),glass);m.castShadow=false;m.position.set(0,wh+0.18+ridge*0.5,rx*gd*0.26);m.rotation.x=rx*0.62;g.add(m);};
+  roofP(-1);roofP(1);
+  g.add(mv(box(gw+0.16,0.06,0.06,frame),0,wh+0.18+ridge,0));               /* ridge */
+  g.add(mv(box(gw-0.4,0.5,0.5,0x8a6f4a,{rough:0.95}),0,0.4,-gd/2+0.5));     /* potting bench */
+  for(let i=0;i<4;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),mat([0x5f7a3a,0x6f8a44][i%2]));p.scale.y=0.85;p.position.set(-0.66+i*0.44,0.78,-gd/2+0.5);g.add(p);}
+  g.add(mv(box(0.6,wh-0.2,0.05,frame),0,(wh-0.2)/2+0.18,gd/2+0.02));        /* door frame */
+  const lb=makeLabel("Greenhouse");lb.position.set(0,wh+ridge+0.7,0);g.add(lb);
+  g.position.set(px,0,pz);return g;
+}
 function buildRain(){
   if(rainPts){scene.remove(rainPts);rainGeo.dispose();rainPts.material.dispose();rainPts=null;}
   RAIN_N=WEATHER[weather].rain||0; if(!RAIN_N)return;
@@ -835,6 +890,8 @@ function wireUI(){
   $("#sunHour").oninput=e=>{dayAnim=false;syncPlay();setSunByHour(+e.target.value);};
   document.querySelectorAll("[data-sun]").forEach(b=>b.onclick=()=>{dayAnim=false;syncPlay();setSunByHour(+b.dataset.sun);});
   $("#sunPlay").onclick=()=>{dayAnim=!dayAnim;syncPlay();};
+  $("#awn").oninput=e=>{awningExt=awningTarget=+e.target.value/100;updateAwnings();};
+  $("#awnFold").onclick=()=>{awningTarget=awningTarget>0.5?0:1;const f=awningTarget<0.5;$("#awnFold").textContent=f?"⇕ Unfold awnings":"⇕ Fold awnings";$("#awnFold").classList.toggle("on",f);};
   /* weather */
   document.querySelectorAll("[data-wx]").forEach(b=>b.onclick=()=>setWeather(b.dataset.wx));
   /* earthquake */
@@ -877,6 +934,7 @@ function animate(){requestAnimationFrame(animate);
   const now=performance.now()*0.001;
   vw.theta+=(dst.theta-vw.theta)*0.15;vw.phi+=(dst.phi-vw.phi)*0.15;vw.radius+=(dst.radius-vw.radius)*0.15;
   if(dayAnim){sunHour+=0.03;if(sunHour>20)sunHour=5;setSunByHour(sunHour);}
+  if(Math.abs(awningExt-awningTarget)>0.002){awningExt+=(awningTarget-awningExt)*0.1;updateAwnings();}
   updateWind(now);updateRain();updateLightning();updateQuake();
   applyCam();
   if(quake.active){camera.position.x+=quake.cam[0];camera.position.y+=quake.cam[1];camera.position.z+=quake.cam[2];}
