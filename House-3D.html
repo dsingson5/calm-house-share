@@ -327,24 +327,26 @@ const ROOMS = [
   { id:"train",   name:"Gym & Recovery",      zone:"train",   x:0.0,  z:9.0, w:8.4, d:4.6, furn:"gym",     open:true },
   { id:"office",  name:"Focus Studio · 5-seat",zone:"office", x:8.6,  z:9.0, w:5.6, d:4.6, furn:"studio",  open:true },
   { id:"prayer",  name:"Prayer Nook",         zone:"prayer",  x:14.4, z:9.0, w:2.2, d:4.6, furn:"prayer",  open:true },
-  /* ---- five bedrooms (walled & private — sleep wants dark + quiet) ---- */
-  { id:"master",  name:"Sleep-Only Bedroom",  zone:"sleep",   x:0.0,  z:0.0, w:4.4, d:3.8, furn:"bed" },
-  { id:"guest",   name:"Guest Room",          zone:"guest",   x:4.6,  z:0.0, w:3.0, d:3.6, furn:"bed" },
-  { id:"kids",    name:"Kids' Room",          zone:"kids",    x:7.6,  z:0.0, w:3.0, d:3.6, furn:"bed" },
-  { id:"family",  name:"Future-Family Room",  zone:"family",  x:4.6,  z:3.8, w:3.0, d:3.4, furn:"bed" },
-  { id:"flex",    name:"Flex · 5th Bedroom",  zone:"flex",    x:7.6,  z:3.8, w:3.0, d:3.4, furn:"bed" },
+  /* ---- five bedrooms (walled & private — sleep wants dark + quiet), off a real hallway ---- */
+  { id:"master",  name:"Sleep-Only Bedroom",  zone:"sleep",   x:0.0,  z:0.0, w:4.4, d:3.8, furn:"bed", door:"S" },
+  { id:"guest",   name:"Guest Room",          zone:"guest",   x:4.6,  z:0.0, w:3.0, d:3.8, furn:"bed", door:"S" },
+  { id:"kids",    name:"Kids' Room",          zone:"kids",    x:7.6,  z:0.0, w:3.0, d:3.8, furn:"bed" },
+  { id:"hall",    name:"Hallway",             zone:"hall",    x:4.6,  z:3.8, w:6.2, d:1.3, open:true },
+  { id:"family",  name:"Future-Family Room",  zone:"family",  x:4.6,  z:5.1, w:3.0, d:3.4, furn:"bed", door:"N" },
+  { id:"flex",    name:"Flex · 5th Bedroom",  zone:"flex",    x:7.6,  z:5.1, w:3.0, d:3.4, furn:"bed" },
   /* ---- master support + service ---- */
   { id:"ensuite", name:"En-suite",            zone:"bath",    x:0.0,  z:3.8, w:2.2, d:2.6, furn:"bath" },
   { id:"dress",   name:"Dressing Room",       zone:"dress",   x:2.2,  z:3.8, w:2.2, d:2.6, furn:"wardrobe" },
-  { id:"gbath",   name:"Guest Bath",          zone:"bath",    x:0.0,  z:6.4, w:2.1, d:1.7, furn:"bath" },
-  { id:"utility", name:"Laundry / Store",     zone:"util",    x:2.2,  z:6.4, w:2.2, d:1.7, furn:"util" }
+  { id:"gbath",   name:"Guest Bath",          zone:"bath",    x:0.0,  z:6.4, w:2.1, d:1.7, furn:"bath", door:"S" },
+  { id:"utility", name:"Laundry / Store",     zone:"util",    x:2.2,  z:6.4, w:2.2, d:1.7, furn:"util", door:"S" }
 ];
 const ZONES = {
   living:{floor:0xEBC98C,why:"East-facing hub — open to kitchen & veranda so everyone's together."},
   kitchen:{floor:0xE0B878,why:"Open kitchen & dining — cooking flows into the living hub."},
   veranda:{floor:0xCDA06A,why:"Morning sun, 5–10 min for your body clock."},
   sleep:{floor:0x9DB0C6,why:"Small, dark, quiet, ventilated — sleep only."},
-  dress:{floor:0xC9B79A,why:"Wardrobes out of the sleep room."},
+  dress:{floor:0xC9B79A,why:"Wardrobes out of the sleep room — the walk-through hub of the master suite."},
+  hall:{floor:0xD9CDB0,why:"The bedroom hallway — every private room opens here or into the open core."},
   bath:{floor:0x96CFC9,why:"Calm, ventilated wet space."},
   train:{floor:0x8893A0,why:"Open gym & recovery — rig, ergs, sauna, plunge + the Hyrox sled lane out front."},
   office:{floor:0xC4A1D6,why:"Big focus studio — seats 5 around the table, open to the hub."},
@@ -372,6 +374,14 @@ const LOCS = {
       browse:"https://www.lamudi.com.ph/laguna/santa-rosa/nuvali/land/buy/" } }
 };
 let LOC = "baguio";
+/* per-lot outdoor placements (lot-centre offsets, metres) — hand-checked so nothing
+   collides with the house, hedges, or each other on either lot */
+const YARD={
+  baguio:{ lane:{cx:0,   z:7.5,  L:15  }, carport:{x:10.1,z:7.2 }, gh:{x:-10.3,z:6.1, s:1   },
+           patio:{x:10.2,z:3.2,w:3.2,d:2.6}, bed:{x:10.6,z:-7.6} },
+  nuvali:{ lane:{cx:-2.3,z:6.75, L:12.5}, carport:{x:7.1, z:6.45}, gh:{x:8.0,  z:-7.1,s:0.65},
+           patio:{x:8.05,z:3.2,w:1.7,d:2.4}, bed:{x:4.6, z:-7.5} }
+};
 
 /* fit: the house auto-scales to sit nicely on whichever lot is chosen */
 const SETB = { front:3, back:2, side:1.5 };   /* metres of setback */
@@ -389,9 +399,9 @@ const show={dims:true,walls:true,roof:false,furniture:true,labels:true,garden:tr
 /* earthquake + typhoon resilience layers (from the engineering brief) */
 const res={shear:false,frame:false,joints:false,iso:false};
 const CENTROID={x:13.5,z:6.0};   /* the open social core — bedroom doors face toward it */
-/* interior doorways between specific rooms (in addition to the open-core–facing door).
-   The dressing room is the master-suite spine: master bedroom ↔ dressing room ↔ laundry. */
-const CONNECTIONS=[["master","dress"],["dress","utility"]];
+/* interior doorways between specific rooms (in addition to each room's main door).
+   The dressing room is the walk-through hub: hallway ↔ dressing ↔ master / en-suite / laundry. */
+const CONNECTIONS=[["master","dress"],["dress","utility"],["ensuite","dress"],["dress","hall"]];
 
 /* sun path + day/night */
 let sunLight, hemiLight, ambLight, fillLight, skySun, moonSprite;
@@ -448,11 +458,11 @@ function buildWall(g,ax,az,bx,bz,h,door){
   s=wallSeg(ax+ux*c2,az+uz*c2,bx,bz,h);if(s)g.add(s);
   const lint=box(gap,0.32,0.12,0xeee4d2);lint.position.set(ax+ux*dc,h-0.16,az+uz*dc);lint.rotation.y=-Math.atan2(dz,dx);g.add(lint);
 }
-function doorSide(r){const cx=r.x+r.w/2,cz=r.z+r.d/2,dx=CENTROID.x-cx,dz=CENTROID.z-cz;
+function doorSide(r){if(r.door)return r.door;const cx=r.x+r.w/2,cz=r.z+r.d/2,dx=CENTROID.x-cx,dz=CENTROID.z-cz;
   if(Math.abs(dx)>Math.abs(dz))return dx>0?"E":"W";return dz>0?"S":"N";}
 /* if rooms r and o share a wall, return {side of r, door-centre distance along that wall} */
 function roomAdj(r,o){
-  const TOL=0.3,rL=r.x,rR=r.x+r.w,rT=r.z,rB=r.z+r.d,oL=o.x,oR=o.x+o.w,oT=o.z,oB=o.z+o.d;
+  const TOL=0.55,rL=r.x,rR=r.x+r.w,rT=r.z,rB=r.z+r.d,oL=o.x,oR=o.x+o.w,oT=o.z,oB=o.z+o.d;   /* >= the 0.5 m edit step */
   if(Math.abs(rR-oL)<=TOL){const a=Math.max(rT,oT),b=Math.min(rB,oB);if(b-a>0.6)return{side:"E",c:(a+b)/2-r.z};}
   if(Math.abs(rL-oR)<=TOL){const a=Math.max(rT,oT),b=Math.min(rB,oB);if(b-a>0.6)return{side:"W",c:(a+b)/2-r.z};}
   if(Math.abs(rB-oT)<=TOL){const a=Math.max(rL,oL),b=Math.min(rR,oR);if(b-a>0.6)return{side:"S",c:(a+b)/2-r.x};}
@@ -493,9 +503,13 @@ function addFurniture(fg,r){
       chair(cx-0.8,cz-1.0,-1);chair(cx+0.8,cz-1.0,-1);chair(cx-0.8,cz+1.0,1);chair(cx+0.8,cz+1.0,1);
       put(box(0.5,0.46,0.5,0x5d6350),cx-2.0,0.23,cz);put(box(0.09,0.55,0.5,0x5d6350),cx-2.22,0.62,cz);
       put(box(r.w-1.4,0.42,0.42,wood),cx,0.21,r.z+0.32);put(box(1.7,0.95,0.06,0x2c2a26),cx,1.0,r.z+0.2);break;}
-    case "wardrobe":{const h=Math.min(2.0,wallHeight-0.3);put(box(r.w-0.4,h,0.55,wood),cx,h/2,r.z+0.35);
-      put(box(0.8,0.8,0.5,0xbfa988),cx,0.4,cz+0.4);break;}
-    case "bath":{put(box(Math.min(1.6,r.w-0.5),0.5,0.8,0xf2f0ea),cx,0.3,r.z+0.6);put(box(r.w-0.6,0.8,0.45,0xd7cbb4),cx,0.45,r.z+r.d-0.3);break;}
+    case "wardrobe":{const h=Math.min(2.0,wallHeight-0.3); /* a 4-door walk-through: keep every doorway clear */
+      put(box(0.55,h,Math.min(1.3,r.d-1.2),wood),r.x+r.w-0.31,h/2,r.z+r.d-0.75);
+      put(box(0.5,0.5,0.5,0xbfa988),r.x+0.32,0.25,r.z+r.d-0.35);break;}
+    case "bath":{if(doorSide(r)==="S"){ /* door on the south wall — fixtures keep to the north half */
+        put(box(0.8,0.8,0.45,0xd7cbb4),r.x+0.65,0.45,r.z+0.5);
+        put(box(0.9,1.9,0.9,0x9fb9b4),r.x+r.w-0.55,0.95,r.z+0.55);
+      }else{put(box(0.8,0.5,Math.min(1.6,r.d-0.9),0xf2f0ea),r.x+0.45,0.3,cz);put(box(r.w-0.6,0.8,0.45,0xd7cbb4),cx,0.45,r.z+r.d-0.3);}break;}
     case "gym":{
       put(box(0.1,1.9,0.1,dark),cx-0.7,0.95,cz-1.4);put(box(0.1,1.9,0.1,dark),cx+0.7,0.95,cz-1.4);
       const bar=cyl(0.04,0.04,1.8,steel,10);bar.rotation.z=Math.PI/2;put(bar,cx,1.45,cz-1.4);
@@ -507,7 +521,7 @@ function addFurniture(fg,r){
       put(box(0.7,0.05,3.2,0x9aa089),r.x+r.w-0.9,0.14,cz+0.2);put(box(0.5,0.4,0.5,0x55585e),r.x+r.w-0.9,0.3,r.z+0.8);
       put(box(1.5,2.0,1.3,cedar),r.x+r.w-1.0,1.0,r.z+r.d-0.9);put(box(0.9,0.7,0.9,0x6f93a6),r.x+0.8,0.35,r.z+r.d-0.7);break;}
     case "prayer":{put(box(1.6,0.4,0.4,wood),cx,0.3,cz+0.2);put(box(0.1,0.7,0.06,wood),cx,1.5,r.z+0.12);put(box(0.4,0.1,0.06,wood),cx,1.6,r.z+0.12);break;}
-    case "util":{put(box(0.7,1.0,0.7,0xe6e2d8),r.x+0.6,0.5,cz);put(box(0.7,1.0,0.7,0xe6e2d8),r.x+1.4,0.5,cz);put(box(r.w-0.4,1.4,0.3,wood),cx+0.5,0.8,r.z+r.d-0.2);break;}
+    case "util":{put(box(0.6,0.9,0.6,0xe6e2d8),r.x+0.34,0.45,r.z+0.75);put(box(0.6,0.9,0.6,0xe6e2d8),r.x+0.34,0.45,r.z+r.d-0.45);put(box(0.3,1.4,r.d-0.5,wood),r.x+r.w-0.35,0.8,cz);break;}
     case "veranda":{put(box(0.6,0.7,0.6,wood),cx,0.35,cz-1.2);put(box(0.6,0.7,0.6,wood),cx,0.35,cz+1.2);
       put(cyl(0.35,0.35,0.4,fab,18),cx,0.2,cz);const bush=new THREE.Mesh(new THREE.SphereGeometry(0.45,12,12),mat(0x6f7e54));bush.castShadow=true;put(bush,r.x+r.w-0.5,0.8,r.z+0.6);break;}
   }
@@ -607,9 +621,9 @@ function makeAwning(w,d){
 function buildOutdoorAwning(cx,cz,w,d,h,rotY){
   h=h||2.5;const root=new THREE.Group();
   const aw=makeAwning(w,d);aw.position.y=h;root.add(aw);
-  const post=(x,z)=>{const p=box(0.1,h,0.1,0x8a6a44);p.castShadow=true;p.position.set(x,h/2,z);root.add(p);};
-  const nP=Math.max(1,Math.round(w/4));
-  for(let i=0;i<=nP;i++){const x=-w/2+0.08+(w-0.16)*i/nP;post(x,0);post(x,d);}
+  const post=(x,z,ph)=>{const p=box(0.1,ph,0.1,0x8a6a44);p.castShadow=true;p.position.set(x,ph/2,z);root.add(p);};
+  const nP=Math.max(1,Math.round(w/4)), hF=h-0.14*d-0.03;   /* front posts stop under the sloped fabric */
+  for(let i=0;i<=nP;i++){const x=-w/2+0.08+(w-0.16)*i/nP;post(x,0,h);post(x,d,hF);}
   root.position.set(cx,0,cz);if(rotY)root.rotation.y=rotY;
   return {group:aw,root:root};
 }
@@ -621,12 +635,14 @@ function buildKidsPlay(cx,cz,w,d){
   for(const sx of[-0.28,0.28])slide.add(mv(box(0.07,0.95,0.07,0xc85c5c),sx,0.48,-0.5));
   slide.add(mv(box(0.62,0.07,0.62,0xe0a93a),0,0.93,-0.5));
   const ramp=box(0.6,0.05,1.5,0x3d8fb0);ramp.position.set(0,0.5,0.25);ramp.rotation.x=0.5;slide.add(ramp);
-  slide.position.set(-w/2+0.9,0,d/2-0.9);g.add(slide);
-  const rocker=new THREE.Group();                                  /* spring rocker */
-  rocker.add(mv(box(0.5,0.18,0.95,0xd9a33a),0,0.55,0));rocker.add(mv(cyl(0.05,0.05,0.4,0x9a7fae,8),0,0.3,0));
-  rocker.add(mv(box(0.12,0.3,0.12,0x6f8a44),0,0.74,-0.4));rocker.position.set(w/2-0.9,0,-d/2+0.9);g.add(rocker);
-  g.add(mv(box(1.3,0.16,1.3,0xe6d6a0,{rough:1}),w/2-1.1,0.08,d/2-1.0));   /* sandbox (under the shade) */
-  const lb=makeLabel("Kids' play area");lb.position.set(0,2.1,0);lb.visible=show.labels;g.add(lb);
+  slide.position.set(-w*0.25,0,-d*0.25);g.add(slide);
+  if(w>=2.2){ /* the spring rocker only fits on the wider lot */
+    const rocker=new THREE.Group();
+    rocker.add(mv(box(0.5,0.18,0.95,0xd9a33a),0,0.55,0));rocker.add(mv(cyl(0.05,0.05,0.4,0x9a7fae,8),0,0.3,0));
+    rocker.add(mv(box(0.12,0.3,0.12,0x6f8a44),0,0.74,-0.4));rocker.position.set(w*0.28,0,-d*0.25);g.add(rocker);
+  }
+  g.add(mv(box(1.3,0.16,1.3,0xe6d6a0,{rough:1}),0,0.08,d*0.3));   /* sandbox (under the shade) */
+  const lb=makeLabel("Kids' play area");lb.position.set(0,2.1,0);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   g.position.set(cx,0,cz);return g;
 }
 function updateAwnings(){
@@ -687,11 +703,13 @@ function buildHipRoof(){
   for(const cx2 of[ex0,ex1])for(const cz2 of[ez0,ez1]){const dp=cyl(0.05,0.05,eY,gut,8);dp.castShadow=false;dp.position.set(cx2,eY/2,cz2);g.add(dp);}
   /* hurricane ties at the eave (roof-to-wall straps) */
   for(let i=0;i<=6;i++){const x=x0+i/6*DESIGN.w;g.add(mv(box(0.07,0.2,0.1,0x6b7076),x,wallHeight+0.1,z0));g.add(mv(box(0.07,0.2,0.1,0x6b7076),x,wallHeight+0.1,z1));}
-  /* solar array sitting ON the south slope of the hip roof */
-  const slopeA=Math.atan2(rY-eY,ez1-zc), syOf=z=>rY+(eY-rY)*(z-zc)/(ez1-zc);
-  for(let r=0;r<2;r++){const pz=zc+1.4+r*1.7;
-    for(let i=0;i<4;i++){const px=xc-2.6+i*1.73;
-      const pv=box(1.5,0.06,1.1,0x16324a,{rough:0.4});pv.position.set(px,syOf(pz)+0.09,pz);pv.rotation.x=slopeA;g.add(pv);}}
+  /* solar array sitting ON the south slope (assumes the ridge runs E-W, i.e. w>=d — skip if an edit flips the roof) */
+  if(DESIGN.w>=DESIGN.d){
+    const slopeA=Math.atan2(rY-eY,ez1-zc), syOf=z=>rY+(eY-rY)*(z-zc)/(ez1-zc);
+    for(let r=0;r<2;r++){const pz=zc+1.4+r*1.7;
+      for(let i=0;i<4;i++){const px=xc-2.6+i*1.73;
+        const pv=box(1.5,0.06,1.1,0x16324a,{rough:0.4});pv.position.set(px,syOf(pz)+0.09,pz);pv.rotation.x=slopeA;g.add(pv);}}
+  }
   const lb=makeLabel("Hip roof · light metal + hurricane ties");lb.position.set(xc,rY+0.95,zc);lb.visible=show.labels;g.add(lb);
   return g;
 }
@@ -718,7 +736,7 @@ function buildMomentFrame(){
 function buildSeismicJoints(){
   const g=new THREE.Group();const h=wallHeight+0.5,col=0xc0392b;
   const x0=DESIGN.minX,z0=DESIGN.minZ,z1=DESIGN.minZ+DESIGN.d;
-  const jx=box(0.06,h,DESIGN.d,col,{op:0.5});jx.castShadow=false;jx.position.set(x0+10.7,h/2,(z0+z1)/2);g.add(jx);
+  const jx=box(0.06,h,DESIGN.d,col,{op:0.5});jx.castShadow=false;jx.position.set(x0+10.78,h/2,(z0+z1)/2);g.add(jx);
   const jz=box(DESIGN.w,h,0.06,col,{op:0.5});jz.castShadow=false;jz.position.set(x0+DESIGN.w/2,h/2,z0+8.7);g.add(jz);
   const lb=makeLabel("seismic separation joints","dim");lb.position.set(x0+DESIGN.w/2,h+0.4,z0+8.7);g.add(lb);
   return g;
@@ -758,7 +776,9 @@ function buildLot(){
   const lot=LOCS[LOC].lot,w=lot.w,d=lot.d,minX=WC.x-w/2,minZ=WC.z-d/2;
   const turf=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat(0x9cb074,{rough:1}));turf.rotation.x=-Math.PI/2;turf.position.set(WC.x,-0.04,WC.z);turf.receiveShadow=true;lotGroup.add(turf);
   const hedge=0x647540,hh=0.5;
-  lotGroup.add(setBar(minX,minZ,minX+w,minZ,hh,hedge));lotGroup.add(setBar(minX,minZ+d,minX+w,minZ+d,hh,hedge));
+  lotGroup.add(setBar(minX,minZ,minX+w,minZ,hh,hedge));
+  const gx=WC.x+YARD[LOC].carport.x;   /* driveway gate gap in the front hedge */
+  lotGroup.add(setBar(minX,minZ+d,gx-1.8,minZ+d,hh,hedge));lotGroup.add(setBar(gx+1.8,minZ+d,minX+w,minZ+d,hh,hedge));
   lotGroup.add(setBar(minX,minZ,minX,minZ+d,hh,hedge));lotGroup.add(setBar(minX+w,minZ,minX+w,minZ+d,hh,hedge));
   const ld=new THREE.Group();
   dimLine(ld,minX,minZ+d+0.7,minX+w,minZ+d+0.7,w.toFixed(1)+" m");
@@ -769,6 +789,7 @@ function buildLot(){
 function buildGardenAndTrees(){
   if(gardenGroup)scene.remove(gardenGroup);gardenGroup=new THREE.Group();scene.add(gardenGroup);
   awnings.length=0;   /* the only awnings are the outdoor ones below */
+  const Y=YARD[LOC];
   const lot=LOCS[LOC].lot, halfW=lot.w/2, halfD=lot.d/2;
   /* carport + car + solar, tucked at the front-east corner */
   const cp=new THREE.Group();
@@ -779,12 +800,12 @@ function buildGardenAndTrees(){
   const car=new THREE.Group();const body=box(1.8,0.5,3.4,0x2f4858);body.position.y=0.55;car.add(body);
   const cab=box(1.7,0.5,1.8,0x3b5a6e);cab.position.set(0,1.0,-0.1);car.add(cab);
   for(const wx of[-0.8,0.8])for(const wz of[-1.05,1.05]){const wl=cyl(0.32,0.32,0.25,0x1a1a1a,16);wl.rotation.z=Math.PI/2;wl.position.set(wx,0.32,wz);car.add(wl);}
-  cp.add(car);cp.position.set(WC.x+halfW-2.0,0,WC.z+halfD-2.6);gardenGroup.add(cp);
-  /* 15 m Hyrox-branded sled lane + 1 sled, across the front (in front of the open gym) */
-  const slz=WC.z+halfD-1.3;
-  gardenGroup.add(buildSledLane(WC.x, slz));
-  /* shade awning over the Hyrox sled lane */
-  const sledAwn=buildOutdoorAwning(WC.x, slz-1.3, 15.4, 2.6, 2.7);
+  cp.add(car);cp.position.set(WC.x+Y.carport.x,0,WC.z+Y.carport.z);gardenGroup.add(cp);
+  /* Hyrox-branded sled lane + 1 sled, across the front (12.5 m — a real Hyrox push — on the tighter lot) */
+  const slx=WC.x+Y.lane.cx, slz=WC.z+Y.lane.z, slL=Y.lane.L;
+  gardenGroup.add(buildSledLane(slx, slz, slL));
+  /* shade awning over the sled lane, clear of the hedges and the carport */
+  const sledAwn=buildOutdoorAwning(slx, slz-1.2, slL+0.4, 2.4, 2.7);
   gardenGroup.add(sledAwn.root);awnings.push(sledAwn);
   /* kids' play area in the open side yard, with its own shade awning */
   const hsRight=d2wx(DESIGN.minX+DESIGN.w), sideYard=(WC.x+halfW)-hsRight;
@@ -796,11 +817,11 @@ function buildGardenAndTrees(){
   for(let r=0;r<4;r++){const bx=WC.x-halfW+2.0+r*2.6, bz=WC.z-halfD+1.0;
     const bed=box(2.3,0.22,0.6,0x6b5a3f);bed.position.set(bx,0.11,bz);gardenGroup.add(bed);
     for(let c=0;c<5;c++){const v=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,6),mat([0x5f7a3a,0x6f8a44,0x7c9850][c%3]));v.scale.y=0.7;v.position.set(bx-0.8+c*0.4,0.32,bz);gardenGroup.add(v);}}
-  gardenGroup.add(buildGreenhouse(WC.x-halfW+1.7, WC.z+halfD-2.9));
-  /* a calm patio in the south-west garden for morning coffee */
-  const patio=new THREE.Mesh(new THREE.PlaneGeometry(4,3),mat(0xd6c6a4,{rough:1}));patio.rotation.x=-Math.PI/2;patio.position.set(WC.x+lot.w*0.22,-0.01,WC.z+halfD-2.2);patio.receiveShadow=true;gardenGroup.add(patio);
-  /* flower beds near the corners */
-  const beds=[[WC.x+halfW-1.4,WC.z+halfD-1.4],[WC.x-halfW+1.4,WC.z-halfD+1.4],[WC.x+halfW-1.4,WC.z-halfD+1.4]];
+  const gh=buildGreenhouse(WC.x+Y.gh.x, WC.z+Y.gh.z);gh.scale.setScalar(Y.gh.s);gardenGroup.add(gh);
+  /* a calm patio in the east side garden — morning-coffee sun, clear of the sled lane */
+  const patio=new THREE.Mesh(new THREE.PlaneGeometry(Y.patio.w,Y.patio.d),mat(0xd6c6a4,{rough:1}));patio.rotation.x=-Math.PI/2;patio.position.set(WC.x+Y.patio.x,-0.01,WC.z+Y.patio.z);patio.receiveShadow=true;gardenGroup.add(patio);
+  /* one flower bed, placed where it doesn't sit under the carport or on the veg beds */
+  const beds=[[WC.x+Y.bed.x,WC.z+Y.bed.z]];
   beds.forEach(b=>{const bed=box(1.3,0.18,1.3,0x6b5a3f);bed.position.set(b[0],0.09,b[1]);gardenGroup.add(bed);
     for(let k=0;k<3;k++){const fl=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,8),mat([0xc85c5c,0xd9a33a,0x9a7fae][k]));fl.position.set(b[0]-0.35+k*0.35,0.36,b[1]);gardenGroup.add(fl);}});
   /* trees just outside the lot corners (pivot at base so they can sway in wind) */
@@ -813,8 +834,8 @@ function buildGardenAndTrees(){
 }
 function makeTree(){const t=new THREE.Group();const tr=cyl(0.16,0.22,1.4,0x7c5a3a,8);tr.position.set(0,0.7,0);t.add(tr);
   const cols=[0x5f7148,0x6b7d50,0x768a58];for(let i=0;i<3;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(1.2-i*0.28,1.5,12),mat(cols[i]));c.castShadow=true;c.position.set(0,1.5+i*0.9,0);t.add(c);}return t;}
-function buildSledLane(cx,cz){
-  const g=new THREE.Group(), L=15, W=1.5;
+function buildSledLane(cx,cz,L){
+  const g=new THREE.Group(), W=1.5;L=L||15;
   /* Hyrox-branded carpet (canvas texture) */
   const cv=document.createElement("canvas");cv.width=1024;cv.height=120;const c=cv.getContext("2d");
   c.fillStyle="#1b1d22";c.fillRect(0,0,1024,120);
@@ -822,7 +843,7 @@ function buildSledLane(cx,cz){
   c.strokeStyle="rgba(255,255,255,0.45)";c.lineWidth=3;for(let i=1;i<10;i++){c.beginPath();c.moveTo(i*102,8);c.lineTo(i*102,112);c.stroke();}
   c.fillStyle="#eef0f2";c.textAlign="center";c.textBaseline="middle";
   c.font="bold 50px Arial, sans-serif";c.fillText("H Y R O X",512,36);
-  c.font="bold 26px Arial, sans-serif";c.fillStyle="#d23b2e";c.fillText("OFFICIAL TRAINING SLED LANE  ·  15 m",512,82);
+  c.font="bold 26px Arial, sans-serif";c.fillStyle="#d23b2e";c.fillText("OFFICIAL TRAINING SLED LANE  ·  "+L+" m",512,82);
   const tex=new THREE.CanvasTexture(cv);tex.anisotropy=4;
   const carpet=new THREE.Mesh(new THREE.PlaneGeometry(L,W),new THREE.MeshStandardMaterial({map:tex,roughness:0.96}));
   carpet.rotation.x=-Math.PI/2;carpet.position.set(cx,0.012,cz);carpet.receiveShadow=true;g.add(carpet);
@@ -833,7 +854,7 @@ function buildSledLane(cx,cz){
   sled.add(mv(box(0.1,1.0,0.1,0x44474c),0,0.6,-0.15));sled.add(mv(box(0.5,0.1,0.1,0x44474c),0,1.06,-0.15));
   for(let i=0;i<3;i++){const pl=cyl(0.27,0.27,0.07,0x222428,18);pl.rotation.x=Math.PI/2;pl.position.set(0,0.34+i*0.16,0.16);sled.add(pl);}
   sled.position.set(cx-L/2+0.9,0,cz);g.add(sled);
-  const lb=makeLabel("Hyrox sled lane · 15 m");lb.position.set(cx,1.1,cz-1.0);g.add(lb);
+  const lb=makeLabel("Hyrox sled lane · "+L+" m");lb.position.set(cx,1.1,cz-1.0);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   return g;
 }
 function mv(m,x,y,z){m.position.set(x,y,z);return m;}
@@ -854,7 +875,7 @@ function buildGreenhouse(px,pz){
   g.add(mv(box(gw+0.16,0.05,0.05,steel),0,wh+0.22+ridge,0));               /* steel ridge */
   g.add(mv(box(gw-0.4,0.45,0.5,0x8a6f4a,{rough:0.95}),0,0.46,-gd/2+0.5));  /* potting bench */
   for(let i=0;i<4;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,6),mat([0x5f7a3a,0x6f8a44][i%2]));p.scale.y=0.85;p.position.set(-0.66+i*0.44,0.8,-gd/2+0.5);g.add(p);}
-  const lb=makeLabel("Greenhouse · polycarbonate (detached)");lb.position.set(0,wh+ridge+0.7,0);g.add(lb);
+  const lb=makeLabel("Greenhouse · polycarbonate (detached)");lb.position.set(0,wh+ridge+0.7,0);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   g.position.set(px,0,pz);return g;
 }
 function buildRain(){
@@ -1037,7 +1058,7 @@ function showPanel(){const r=ROOMS.find(x=>x.id===selectedId);if(!r){$("#panel")
 function editField(key,dir){const r=ROOMS.find(x=>x.id===selectedId);if(!r)return;const s=0.5;
   if(key==="w")r.w=clamp(+(r.w+dir*s).toFixed(1),1,12);if(key==="d")r.d=clamp(+(r.d+dir*s).toFixed(1),1,12);
   if(key==="x")r.x=+(r.x+dir*s).toFixed(1);if(key==="z")r.z=+(r.z+dir*s).toFixed(1);
-  computeDesign();rebuildHouse();buildDims();showPanel();}
+  build();showPanel();}
 function updateInfo(){
   const L=LOCS[LOC];$("#infoLoc").textContent=L.name;$("#infoPin").style.background="#"+L.pin.toString(16).padStart(6,"0");
   const lotArea=L.lot.w*L.lot.d, homeArea=Math.round(rm(DESIGN.w)*rm(DESIGN.d));
@@ -1059,13 +1080,14 @@ function wireUI(){
     else if(t==="attic"){if(houseGroup.userData.attic)houseGroup.userData.attic.visible=show.attic;}
     else if(t==="roof"){if(houseGroup.userData.roofg)houseGroup.userData.roofg.visible=show.roof;}
     else if(t==="dims"){dimGroup.visible=show.dims;if(lotGroup&&lotGroup.userData.ld)lotGroup.userData.ld.visible=show.dims;}
-    else {rebuildHouse();buildDims();}});
+    else {rebuildHouse();buildDims();
+      if(t==="labels"&&gardenGroup)gardenGroup.traverse(o=>{if(o.userData&&o.userData.label)o.visible=show.labels;});}});
   document.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{const k=b.dataset.r;res[k]=!res[k];b.classList.toggle("on",res[k]);
     if(houseGroup.userData[k])houseGroup.userData[k].visible=res[k];});
   $("#editToggle").onclick=()=>{editMode=!editMode;$("#editToggle").textContent="edit mode: "+(editMode?"on":"off");$("#editToggle").classList.toggle("on",editMode);if(!editMode){selectedId=null;clearHighlight();$("#panel").classList.remove("show");}};
   $("#panelClose").onclick=()=>{selectedId=null;clearHighlight();$("#panel").classList.remove("show");};
   document.querySelectorAll(".stepper button").forEach(b=>b.onclick=()=>editField(b.dataset.e,+b.dataset.d));
-  $("#pHide").onclick=()=>{const r=ROOMS.find(x=>x.id===selectedId);if(!r)return;r.hidden=!r.hidden;computeDesign();rebuildHouse();buildDims();showPanel();};
+  $("#pHide").onclick=()=>{const r=ROOMS.find(x=>x.id===selectedId);if(!r)return;r.hidden=!r.hidden;build();showPanel();};
   $("#exportBtn").onclick=()=>{$("#exportText").value=layoutJSON();$("#modal").classList.add("show");};
   $("#modalClose").onclick=()=>$("#modal").classList.remove("show");
   $("#copyBtn").onclick=()=>{const t=$("#exportText");t.select();try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand("copy");}toast("Layout copied");};
@@ -1073,8 +1095,9 @@ function wireUI(){
   $("#sunHour").oninput=e=>{dayAnim=false;syncPlay();setSunByHour(+e.target.value);};
   document.querySelectorAll("[data-sun]").forEach(b=>b.onclick=()=>{dayAnim=false;syncPlay();setSunByHour(+b.dataset.sun);});
   $("#sunPlay").onclick=()=>{dayAnim=!dayAnim;syncPlay();};
-  $("#awn").oninput=e=>{awningExt=awningTarget=+e.target.value/100;updateAwnings();};
-  $("#awnFold").onclick=()=>{awningTarget=awningTarget>0.5?0:1;const f=awningTarget<0.5;$("#awnFold").textContent=f?"⇕ Unfold awnings":"⇕ Fold awnings";$("#awnFold").classList.toggle("on",f);};
+  const syncAwnBtn=()=>{const f=awningTarget<0.5;$("#awnFold").textContent=f?"⇕ Unfold awnings":"⇕ Fold awnings";$("#awnFold").classList.toggle("on",f);};
+  $("#awn").oninput=e=>{awningExt=awningTarget=+e.target.value/100;updateAwnings();syncAwnBtn();};
+  $("#awnFold").onclick=()=>{awningTarget=awningTarget>0.5?0:1;syncAwnBtn();};
   /* weather */
   document.querySelectorAll("[data-wx]").forEach(b=>b.onclick=()=>setWeather(b.dataset.wx));
   /* earthquake */
@@ -1089,7 +1112,7 @@ function wireUI(){
   paintTheme();
 }
 function syncPlay(){const b=document.getElementById("sunPlay");if(b){b.classList.toggle("on",dayAnim);b.textContent=dayAnim?"⏸ Pause the day":"▶ Animate the day";}}
-function layoutJSON(){return "[\n"+ROOMS.map(r=>{const o={id:r.id,name:r.name,zone:r.zone,x:r.x,z:r.z,w:r.w,d:r.d,furn:r.furn};if(r.open)o.open=true;if(r.wall===false)o.wall=false;if(r.hidden)o.hidden=true;return "  "+JSON.stringify(o);}).join(",\n")+"\n]";}
+function layoutJSON(){return "[\n"+ROOMS.map(r=>{const o={id:r.id,name:r.name,zone:r.zone,x:r.x,z:r.z,w:r.w,d:r.d,furn:r.furn};if(r.open)o.open=true;if(r.door)o.door=r.door;if(r.wall===false)o.wall=false;if(r.hidden)o.hidden=true;return "  "+JSON.stringify(o);}).join(",\n")+"\n]";}
 function toast(m){const e=$("#toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1600);}
 function init(){
   scene=new THREE.Scene();scene.fog=new THREE.Fog(0xe7e0d0,60,160);
