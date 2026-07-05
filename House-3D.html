@@ -213,6 +213,7 @@
       <button class="btn" data-wx="thunder">⚡ Storm</button>
     </div>
     <div class="docknote" id="wxNote">Calm and clear.</div>
+    <div class="docknote" id="waterNote"></div>
     <div class="sep"></div>
     <h4>Earthquake</h4>
     <div class="slider">
@@ -226,7 +227,9 @@
       <button class="btn" data-quake="8">M8</button>
     </div>
     <button class="btn full accent" id="quakeBtn">⊕ Shake the house</button>
+    <button class="btn full" id="quakeCompare">⚖ Compare: with vs without</button>
     <div class="docknote" id="quakeNote"></div>
+    <div class="docknote" id="cmpNote"></div>
     <div class="sep"></div>
     <h4>Show</h4>
     <div class="row">
@@ -422,6 +425,12 @@ const WEATHER={
   thunder:{ sunMul:0.22, hemiMul:0.46, sky:[70,74,84],    skyAmt:0.84, fogNear:16, fogFar:85,  fog:[88,92,102],   fogAmt:0.74,wind:1.1,  rain:4200 }
 };
 const quake={active:false,mag:6,t:0,dur:0,amp:0,cam:[0,0,0]};
+/* water sim (roof runoff → gutters → standing water) + quake A/B comparison twin */
+let runoffPts=null,runoffGeo=null,runoffDat=null,ROOF_G=null,floodMesh=null,floodLvl=0,wetFloor=null;
+const downspoutJets=[],splashes=[];
+const FLOOD_TGT={clear:0,rain:0.05,fog:0.01,heat:0,storm:0.13,thunder:0.11};
+let ghost=null,ghostX=0,compareOn=false;const ghostLabels=[];
+const qd={prot:0,unprot:0,leanU:0,roofDropped:false};
 /* retractable awning over the open spaces (0..1 extended); awningTarget animates the accordion fold */
 let awningExt=1, awningTarget=1, stripeTex=null; const awnings=[];
 
@@ -567,21 +576,21 @@ function roofGeom(){
   const oh=clamp(span*0.05,0.5,0.9),eY=wallHeight+0.2,rY=eY+clamp(span*0.27,1.8,4.0),ri=span*0.32;
   const ex0=x0-oh,ex1=x1+oh,ez0=z0-oh,ez1=z1+oh;
   const eNW=[ex0,eY,ez0],eNE=[ex1,eY,ez0],eSE=[ex1,eY,ez1],eSW=[ex0,eY,ez1];
-  let tris;
-  if(DESIGN.w>=DESIGN.d){const rA=[x0+ri,rY,zc],rB=[x1-ri,rY,zc];
+  let tris,rA,rB;
+  if(DESIGN.w>=DESIGN.d){rA=[x0+ri,rY,zc];rB=[x1-ri,rY,zc];
     tris=[[eNW,eNE,rB],[eNW,rB,rA],[eSE,eSW,rA],[eSE,rA,rB],[eNE,eSE,rB],[eSW,eNW,rA]];}
-  else{const rA=[xc,rY,z0+ri],rB=[xc,rY,z1-ri];
+  else{rA=[xc,rY,z0+ri];rB=[xc,rY,z1-ri];
     tris=[[eNE,eSE,rB],[eNE,rB,rA],[eSW,eNW,rA],[eSW,rA,rB],[eSE,eSW,rB],[eNW,eNE,rA]];}
-  return {tris,rY};
+  return {tris,rY,rA,rB,rect:[ex0,ez0,ex1,ez1]};
 }
-function roofYAt(x,z){
-  const G=roofGeom();
+function roofYAtG(G,x,z){
   for(const t of G.tris){const a=t[0],b=t[1],c=t[2];
     const d=(b[2]-c[2])*(a[0]-c[0])+(c[0]-b[0])*(a[2]-c[2]);if(Math.abs(d)<1e-6)continue;
     const wa=((b[2]-c[2])*(x-c[0])+(c[0]-b[0])*(z-c[2]))/d,wb=((c[2]-a[2])*(x-c[0])+(a[0]-c[0])*(z-c[2]))/d,wc=1-wa-wb;
     if(wa>=-0.002&&wb>=-0.002&&wc>=-0.002)return wa*a[1]+wb*b[1]+wc*c[1];}
   return G.rY;
 }
+function roofYAt(x,z){return roofYAtG(roofGeom(),x,z);}
 /* the attic stock room — a storage loft that lives INSIDE the hip roof (no roof/walls of its
    own); crates sit on the loft floor and are kept under the sloping roof above. */
 function buildAttic(){
@@ -666,6 +675,10 @@ function rebuildHouse(){
   const fr=buildMomentFrame();fr.visible=res.frame;houseGroup.add(fr);houseGroup.userData.frame=fr;
   const jo=buildSeismicJoints();jo.visible=res.joints;houseGroup.add(jo);houseGroup.userData.joints=jo;
   const iso=buildBaseIsolation();iso.visible=res.iso;houseGroup.add(iso);houseGroup.userData.iso=iso;
+  ROOF_G=roofGeom();
+  if(houseGroup.userData.water)houseGroup.remove(houseGroup.userData.water);
+  const wg=buildWaterFittings();houseGroup.add(wg);houseGroup.userData.water=wg;
+  buildRunoff();
   if(selectedId&&roomGroups[selectedId])highlight(selectedId);else clearHighlight();
 }
 function buildFoundation(){
@@ -878,6 +891,96 @@ function buildGreenhouse(px,pz){
   const lb=makeLabel("Greenhouse · polycarbonate (detached)");lb.position.set(0,wh+ridge+0.7,0);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   g.position.set(px,0,pz);return g;
 }
+/* ---- water: runoff on the roof planes, downspout streams, rising water, wet floors ---- */
+function buildWaterFittings(){
+  const g=new THREE.Group();downspoutJets.length=0;splashes.length=0;
+  const G=roofGeom(),eY=wallHeight+0.2;
+  for(const cx of[G.rect[0],G.rect[2]])for(const cz of[G.rect[1],G.rect[3]]){
+    const jet=new THREE.Mesh(new THREE.BoxGeometry(0.07,eY-0.1,0.07),new THREE.MeshStandardMaterial({color:0x7fb4d8,transparent:true,opacity:0.55,roughness:0.3}));
+    jet.position.set(cx,eY/2,cz);jet.visible=false;jet.castShadow=false;g.add(jet);downspoutJets.push(jet);
+    const sp=new THREE.Mesh(new THREE.CircleGeometry(0.4,20),new THREE.MeshBasicMaterial({color:0xa8d4ee,transparent:true,opacity:0.5,depthWrite:false}));
+    sp.rotation.x=-Math.PI/2;sp.position.set(cx,0.2,cz);sp.visible=false;g.add(sp);splashes.push(sp);}
+  wetFloor=new THREE.Mesh(new THREE.PlaneGeometry(DESIGN.w,DESIGN.d),new THREE.MeshBasicMaterial({color:0x2e4a63,transparent:true,opacity:0,depthWrite:false}));
+  wetFloor.rotation.x=-Math.PI/2;wetFloor.position.set(DESIGN.minX+DESIGN.w/2,0.145,DESIGN.minZ+DESIGN.d/2);wetFloor.visible=false;g.add(wetFloor);
+  return g;
+}
+function respawnRun(d){
+  const G=ROOF_G,r=G.rect;
+  d.x=r[0]+Math.random()*(r[2]-r[0]);d.z=r[1]+Math.random()*(r[3]-r[1]);
+  const rx=clamp(d.x,Math.min(G.rA[0],G.rB[0]),Math.max(G.rA[0],G.rB[0]));
+  const rz=clamp(d.z,Math.min(G.rA[2],G.rB[2]),Math.max(G.rA[2],G.rB[2]));
+  let vx=d.x-rx,vz=d.z-rz;const L=Math.hypot(vx,vz);
+  if(L<0.05){vx=0;vz=Math.random()<0.5?-1:1;}else{vx/=L;vz/=L;}
+  d.dx=vx;d.dz=vz;d.sp=0.9+Math.random()*0.8;
+}
+function buildRunoff(){
+  if(runoffPts){houseGroup.remove(runoffPts);runoffGeo.dispose();runoffPts.material.dispose();runoffPts=null;runoffDat=null;}
+  if(!show.roof||!(WEATHER[weather].rain||0))return;
+  ROOF_G=roofGeom();
+  const n=weather==="rain"?150:260,pos=new Float32Array(n*3);runoffDat=[];
+  for(let i=0;i<n;i++){const d={};respawnRun(d);runoffDat.push(d);pos[i*3]=d.x;pos[i*3+1]=roofYAtG(ROOF_G,d.x,d.z)+0.05;pos[i*3+2]=d.z;}
+  runoffGeo=new THREE.BufferGeometry();runoffGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  runoffPts=new THREE.Points(runoffGeo,new THREE.PointsMaterial({color:0xa9d3ef,size:0.13,transparent:true,opacity:0.9,depthWrite:false}));
+  runoffPts.renderOrder=5;houseGroup.add(runoffPts);
+}
+function buildFlood(){
+  if(floodMesh){scene.remove(floodMesh);floodMesh.geometry.dispose();floodMesh.material.dispose();floodMesh=null;}
+  const lot=LOCS[LOC].lot,m=6,fx0=WC.x-lot.w/2-m,fx1=WC.x+lot.w/2+m,fz0=WC.z-lot.d/2-m,fz1=WC.z+lot.d/2+m;
+  const hm=0.6*houseScale;   /* the hole hugs the raised plinth — that is what keeps the pad dry */
+  const hx0=d2wx(DESIGN.minX)-hm,hx1=d2wx(DESIGN.minX+DESIGN.w)+hm,hz0=d2wz(DESIGN.minZ)-hm,hz1=d2wz(DESIGN.minZ+DESIGN.d)+hm;
+  const sh=new THREE.Shape();sh.moveTo(fx0,fz0);sh.lineTo(fx1,fz0);sh.lineTo(fx1,fz1);sh.lineTo(fx0,fz1);sh.closePath();
+  const hole=new THREE.Path();hole.moveTo(hx0,hz0);hole.lineTo(hx1,hz0);hole.lineTo(hx1,hz1);hole.lineTo(hx0,hz1);hole.closePath();sh.holes.push(hole);
+  const g=new THREE.ShapeGeometry(sh);g.rotateX(Math.PI/2);
+  floodMesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x3f6a86,transparent:true,opacity:0.55,roughness:0.15,metalness:0.3,side:THREE.DoubleSide}));
+  floodMesh.visible=false;floodMesh.renderOrder=2;scene.add(floodMesh);
+}
+function updateWater(now){
+  const wxw=WEATHER[weather],raining=(wxw.rain||0)>0;
+  const plinthW=0.16*houseScale;
+  const tgt=Math.min(FLOOD_TGT[weather]||0,plinthW*0.9);
+  floodLvl+=(tgt-floodLvl)*(tgt>floodLvl?0.004:0.0025);
+  if(floodMesh){floodMesh.visible=floodLvl>0.006;floodMesh.position.y=floodLvl;
+    if(floodMesh.visible)floodMesh.material.opacity=Math.min(0.68,floodLvl*4+0.22);}
+  if(runoffPts&&ROOF_G){const p=runoffGeo.attributes.position.array,G=ROOF_G;
+    for(let i=0;i<runoffDat.length;i++){const d=runoffDat[i];d.x+=d.dx*d.sp/60;d.z+=d.dz*d.sp/60;
+      if(d.x<G.rect[0]||d.x>G.rect[2]||d.z<G.rect[1]||d.z>G.rect[3])respawnRun(d);
+      p[i*3]=d.x;p[i*3+1]=roofYAtG(G,d.x,d.z)+0.05;p[i*3+2]=d.z;}
+    runoffGeo.attributes.position.needsUpdate=true;}
+  const jv=raining&&show.roof;
+  for(let k=0;k<downspoutJets.length;k++){const j=downspoutJets[k];j.visible=jv;if(jv)j.material.opacity=0.42+Math.sin(now*7+k*1.9)*0.18;}
+  for(let k=0;k<splashes.length;k++){const s=splashes[k];s.visible=jv;if(jv){const ph=(now*1.5+k*0.65)%1;s.scale.setScalar(0.35+ph*1.1);s.material.opacity=0.5*(1-ph);}}
+  if(wetFloor){const t=(raining&&!show.roof)?0.5:0;wetFloor.material.opacity+=(t-wetFloor.material.opacity)*0.02;wetFloor.visible=wetFloor.material.opacity>0.02;}
+  const nEl=document.getElementById("waterNote");
+  if(nEl){nEl.textContent=raining?(show.roof
+      ?("Roof sheds rain → gutters → downspouts. Standing water +"+Math.round(floodLvl*100)+" cm; the raised plinth keeps the floor dry (+"+Math.round(plinthW*100)+" cm).")
+      :"⚠ Roof hidden — rain falls straight into the rooms. Toggle the Hip roof on.")
+    :(floodLvl>0.012?("Water draining away… +"+Math.round(floodLvl*100)+" cm"):"");}
+}
+/* ---- earthquake A/B: your protected house vs an identical unprotected twin ---- */
+function protFactor(){let f=1;if(res.iso)f*=0.25;if(res.shear)f*=0.7;if(res.frame)f*=0.8;if(res.joints)f*=0.9;return f;}
+function rotFactor(){let f=1;if(res.shear)f*=0.45;if(res.frame)f*=0.7;return f;}
+function dmgState(D){return D<0.1?"no damage":D<0.18?"hairline cracks in finishes":D<0.3?"walls crack · tiles fall":D<0.5?"structural damage — it leans":"partial collapse";}
+function removeGhost(){if(ghost){scene.remove(ghost);ghost=null;}ghostLabels.forEach(l=>scene.remove(l));ghostLabels.length=0;}
+function buildGhost(){
+  removeGhost();clearHighlight();
+  const saved=houseGroup.userData;houseGroup.userData={};   /* userData holds meshes — strip for a safe deep clone */
+  ghost=houseGroup.clone(true);
+  houseGroup.userData=saved;
+  const lot=LOCS[LOC].lot;
+  ghostX=WC.x+lot.w/2+4-houseScale*DESIGN.minX;
+  ghost.position.set(ghostX,0,offZ);ghost.rotation.set(0,0,0);
+  ["shear","frame","joints","iso"].forEach(k=>{const i=houseGroup.children.indexOf(saved[k]);if(i>=0&&ghost.children[i])ghost.children[i].visible=false;});
+  ghost.userData={roofIdx:houseGroup.children.indexOf(saved.roofg)};
+  scene.add(ghost);
+  const cy=houseScale*(wallHeight+5.0);
+  const l1=makeLabel("Twin — NO protections","dim");l1.position.set(ghostX+houseScale*(DESIGN.minX+DESIGN.w/2),cy,offZ+houseScale*(DESIGN.minZ+DESIGN.d/2));scene.add(l1);ghostLabels.push(l1);
+  const l2=makeLabel("Yours — WITH protections");l2.position.set(d2wx(DESIGN.minX+DESIGN.w/2),cy,d2wz(DESIGN.minZ+DESIGN.d/2));scene.add(l2);ghostLabels.push(l2);
+}
+function applyGhostDamage(){
+  if(!ghost||qd.roofDropped||qd.leanU<0.09)return;qd.roofDropped=true;
+  const ri=ghost.userData.roofIdx;
+  if(ri>=0&&ghost.children[ri]){ghost.children[ri].position.y-=0.5;ghost.children[ri].rotation.z=0.07;}
+}
 function buildRain(){
   if(rainPts){scene.remove(rainPts);rainGeo.dispose();rainPts.material.dispose();rainPts=null;}
   RAIN_N=WEATHER[weather].rain||0; if(!RAIN_N)return;
@@ -965,7 +1068,7 @@ function setWeather(w){
   weather=w;
   document.querySelectorAll("[data-wx]").forEach(b=>b.classList.toggle("on",b.dataset.wx===w));
   const note=document.getElementById("wxNote");if(note)note.textContent=WX_NOTE[w]||"";
-  buildRain();setSunByHour(sunHour);
+  buildRain();buildRunoff();setSunByHour(sunHour);
 }
 const WX_NOTE={
   clear:"Calm and clear.",
@@ -986,7 +1089,11 @@ function updateRain(){
   const pos=rainGeo.attributes.position.array,ud=rainGeo.userData;
   const fall=(weather==="storm"||weather==="thunder")?1.9:1.15;
   const sx=windDir[0]*windStrength*0.07, sz=windDir[2]*windStrength*0.07;
+  const G=show.roof?ROOF_G:null, ridgeW=G?G.rY*houseScale+0.2:0;
   for(let i=0;i<RAIN_N;i++){let y=pos[i*3+1]-rainSpeed[i]*fall;pos[i*3]+=sx;pos[i*3+2]+=sz;
+    if(G&&y<ridgeW){const lx=(pos[i*3]-offX)/houseScale,lz=(pos[i*3+2]-offZ)/houseScale;
+      if(lx>G.rect[0]&&lx<G.rect[2]&&lz>G.rect[1]&&lz<G.rect[3]&&y<roofYAtG(G,lx,lz)*houseScale+0.12){
+        y=ud.H;pos[i*3]=WC.x+(Math.random()-0.5)*ud.W;pos[i*3+2]=WC.z+(Math.random()-0.5)*ud.D;}}
     if(y<-0.5){y=ud.H;pos[i*3]=WC.x+(Math.random()-0.5)*ud.W;pos[i*3+2]=WC.z+(Math.random()-0.5)*ud.D;}
     pos[i*3+1]=y;}
   rainGeo.attributes.position.needsUpdate=true;
@@ -999,18 +1106,29 @@ function updateLightning(){
 }
 /* ---- earthquake ---- */
 function triggerQuake(mag){
-  quake.mag=mag;quake.amp=0.02*Math.pow(10,(mag-3)*0.30)*(res.iso?0.25:1);quake.dur=2.6+(mag-3)*1.7;
+  quake.mag=mag;quake.amp=0.02*Math.pow(10,(mag-3)*0.30);quake.dur=2.6+(mag-3)*1.7;   /* raw demand — protection factors apply per-house in updateQuake */
+  qd.prot=0;qd.unprot=0;qd.leanU=0;qd.roofDropped=false;
+  if(compareOn)buildGhost();   /* fresh, undamaged twin each run */
   quake.t=0;quake.active=true;syncQuakeUI();
 }
 function updateQuake(){
   if(!quake.active){quake.cam[0]=quake.cam[1]=quake.cam[2]=0;return;}
   quake.t+=1/60;
-  if(quake.t>=quake.dur){quake.active=false;houseGroup.position.set(offX,0,offZ);houseGroup.rotation.set(0,0,0);quake.cam=[0,0,0];syncQuakeUI();return;}
+  if(quake.t>=quake.dur){quake.active=false;houseGroup.position.set(offX,0,offZ);houseGroup.rotation.set(0,0,0);quake.cam=[0,0,0];
+    if(compareOn&&ghost){ghost.position.set(ghostX,0,offZ);ghost.rotation.set(0,0,qd.leanU);applyGhostDamage();}
+    syncQuakeUI();return;}
   const ramp=Math.min(1,quake.t/Math.min(0.6,quake.dur*0.18)), decay=Math.pow(1-quake.t/quake.dur,1.6), env=ramp*decay, t=quake.t;
-  const sx=Math.sin(t*39.1)*0.6+Math.sin(t*23.3)*0.4, sz=Math.sin(t*41.7+1.3)*0.6+Math.sin(t*27.9+0.7)*0.4, sy=Math.sin(t*61.0)*0.5, A=quake.amp*env;
-  houseGroup.position.set(offX+sx*A,Math.abs(sy)*A*0.35,offZ+sz*A);
-  houseGroup.rotation.set(sx*A*0.02,0,sz*A*0.02);
-  quake.cam[0]=sx*A*1.7;quake.cam[1]=sy*A*0.9;quake.cam[2]=sz*A*1.7;
+  const sx=Math.sin(t*39.1)*0.6+Math.sin(t*23.3)*0.4, sz=Math.sin(t*41.7+1.3)*0.6+Math.sin(t*27.9+0.7)*0.4, sy=Math.sin(t*61.0)*0.5;
+  const Ap=quake.amp*protFactor()*env, Au=quake.amp*env;   /* yours vs the unprotected twin */
+  qd.prot=Math.max(qd.prot,Ap);qd.unprot=Math.max(qd.unprot,Au);
+  houseGroup.position.set(offX+sx*Ap,Math.abs(sy)*Ap*0.35,offZ+sz*Ap);
+  houseGroup.rotation.set(sx*Ap*0.02*rotFactor(),0,sz*Ap*0.02*rotFactor());
+  if(compareOn&&ghost){
+    qd.leanU=Math.min(0.22,Math.max(qd.leanU,(Au-0.18)*0.45));   /* permanent lean once demand exceeds capacity */
+    ghost.position.set(ghostX+sx*Au,Math.abs(sy)*Au*0.35,offZ+sz*Au);
+    ghost.rotation.set(sx*Au*0.026,0,sz*Au*0.026+qd.leanU);
+  }
+  quake.cam[0]=sx*Ap*1.7;quake.cam[1]=sy*Ap*0.9;quake.cam[2]=sz*Ap*1.7;
   syncQuakeUI();
 }
 function quakeDesc(m){
@@ -1026,6 +1144,12 @@ function syncQuakeUI(){
   if(v)v.textContent="M"+quake.mag.toFixed(1);
   if(n)n.textContent=quake.active?("Shaking… M"+quake.mag.toFixed(1)+" for "+Math.max(0,(quake.dur-quake.t)).toFixed(0)+"s"):quakeDesc(quake.mag);
   if(b){b.textContent=quake.active?"⊕ Shaking…":"⊕ Shake the house";b.classList.toggle("on",quake.active);}
+  const c=document.getElementById("cmpNote");
+  if(c){if(!compareOn)c.innerHTML="";
+    else if(quake.active)c.innerHTML="Watch both houses shake…";
+    else if(qd.unprot>0){const on=Object.keys(res).filter(k=>res[k]);
+      c.innerHTML="<b>With</b> "+(on.length?on.join(" + "):"⚠ nothing enabled")+": "+dmgState(qd.prot)+"<br><b>Without</b>: "+dmgState(qd.unprot);}
+    else c.innerHTML="A twin house (no protections) stands beside the lot — try M7–M8.";}
 }
 
 const vw={theta:0.85,phi:1.0,radius:36},dst={theta:0.85,phi:1.0,radius:36};
@@ -1069,7 +1193,7 @@ function updateInfo(){
   const br=$("#iBrowse");br.href=L.listing.browse;
 }
 function setLoc(loc){LOC=loc;document.querySelectorAll("#locSeg button").forEach(b=>b.classList.toggle("on",b.dataset.loc===loc));build();}
-function build(){computeDesign();computeFit();rebuildHouse();buildDims();buildLot();buildGardenAndTrees();updateInfo();if(selectedId)showPanel();}
+function build(){computeDesign();computeFit();rebuildHouse();buildDims();buildLot();buildGardenAndTrees();buildFlood();updateInfo();if(compareOn)buildGhost();if(selectedId)showPanel();}
 function wireUI(){
   document.querySelectorAll("#locSeg button").forEach(b=>b.onclick=()=>setLoc(b.dataset.loc));
   $("#vReset").onclick=resetView;$("#vTop").onclick=topView;
@@ -1078,7 +1202,7 @@ function wireUI(){
     if(t==="grid")gridHelper.visible=show.grid;
     else if(t==="garden")gardenGroup.visible=show.garden;
     else if(t==="attic"){if(houseGroup.userData.attic)houseGroup.userData.attic.visible=show.attic;}
-    else if(t==="roof"){if(houseGroup.userData.roofg)houseGroup.userData.roofg.visible=show.roof;}
+    else if(t==="roof"){if(houseGroup.userData.roofg)houseGroup.userData.roofg.visible=show.roof;buildRunoff();}
     else if(t==="dims"){dimGroup.visible=show.dims;if(lotGroup&&lotGroup.userData.ld)lotGroup.userData.ld.visible=show.dims;}
     else {rebuildHouse();buildDims();
       if(t==="labels"&&gardenGroup)gardenGroup.traverse(o=>{if(o.userData&&o.userData.label)o.visible=show.labels;});}});
@@ -1104,6 +1228,8 @@ function wireUI(){
   $("#quakeMag").oninput=e=>{quake.mag=+e.target.value;syncQuakeUI();};
   document.querySelectorAll("[data-quake]").forEach(b=>b.onclick=()=>{const m=+b.dataset.quake;quake.mag=m;const sl=$("#quakeMag");if(sl)sl.value=m;triggerQuake(m);});
   $("#quakeBtn").onclick=()=>{if(!quake.active)triggerQuake(quake.mag);};
+  $("#quakeCompare").onclick=()=>{compareOn=!compareOn;$("#quakeCompare").classList.toggle("on",compareOn);
+    if(compareOn){buildGhost();toast("Twin house (no protections) built beside the lot");}else removeGhost();syncQuakeUI();};
   syncQuakeUI();
   /* day / night theme */
   const tbtn=$("#themeToggle");
@@ -1141,7 +1267,7 @@ function animate(){requestAnimationFrame(animate);
   vw.theta+=(dst.theta-vw.theta)*0.15;vw.phi+=(dst.phi-vw.phi)*0.15;vw.radius+=(dst.radius-vw.radius)*0.15;
   if(dayAnim){sunHour+=0.03;if(sunHour>20)sunHour=5;setSunByHour(sunHour);}
   if(Math.abs(awningExt-awningTarget)>0.002){awningExt+=(awningTarget-awningExt)*0.1;updateAwnings();}
-  updateWind(now);updateRain();updateLightning();updateQuake();
+  updateWind(now);updateRain();updateWater(now);updateLightning();updateQuake();
   applyCam();
   if(quake.active){camera.position.x+=quake.cam[0];camera.position.y+=quake.cam[1];camera.position.z+=quake.cam[2];}
   const n=document.getElementById("needle");if(n)n.style.transform="rotate("+vw.theta+"rad)";
