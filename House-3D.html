@@ -659,6 +659,7 @@ function updateAwnings(){
   const lb=document.getElementById("awnVal");if(lb)lb.textContent=Math.round(awningExt*100)+"%";
   const sl=document.getElementById("awn");if(sl&&document.activeElement!==sl)sl.value=Math.round(awningExt*100);
 }
+function syncAwnBtn(){const b=document.getElementById("awnFold");if(!b)return;const f=awningTarget<0.5;b.textContent=f?"⇕ Unfold awnings":"⇕ Fold awnings";b.classList.toggle("on",f);}
 function rebuildHouse(){
   Object.values(roomGroups).forEach(g=>houseGroup.remove(g));for(const k in roomGroups)delete roomGroups[k];floorMeshes.length=0;
   ROOMS.forEach(r=>{if(r.hidden)return;const g=buildRoom(r);roomGroups[r.id]=g;houseGroup.add(g);});
@@ -891,6 +892,51 @@ function buildGreenhouse(px,pz){
   const lb=makeLabel("Greenhouse · polycarbonate (detached)");lb.position.set(0,wh+ridge+0.7,0);lb.visible=show.labels;lb.userData.label=true;g.add(lb);
   g.position.set(px,0,pz);return g;
 }
+/* ---- typhoon wind: gust streaks + flying leaves that lift over the hip roof; awnings flap ---- */
+let windLines=null,windGeo2=null,windDat2=null,leafPts=null,leafGeo=null,leafDat=null;
+function spawnStreak(){return {x:WC.x+(Math.random()-0.5)*90,z:WC.z+(Math.random()-0.5)*90,y:0.4+Math.pow(Math.random(),1.6)*8,sp:0.28+Math.random()*0.35,ln:0.9+Math.random()*1.4};}
+function spawnLeaf(){return {x:WC.x+(Math.random()-0.5)*80,z:WC.z+(Math.random()-0.5)*80,y:0.3+Math.pow(Math.random(),2)*5,sp:0.2+Math.random()*0.3,ph:Math.random()*6};}
+function buildWindFX(){
+  const N=120;windDat2=[];
+  for(let i=0;i<N;i++)windDat2.push(spawnStreak());
+  windGeo2=new THREE.BufferGeometry();windGeo2.setAttribute("position",new THREE.BufferAttribute(new Float32Array(N*6),3));
+  windLines=new THREE.LineSegments(windGeo2,new THREE.LineBasicMaterial({color:0xcfd8de,transparent:true,opacity:0}));
+  windLines.frustumCulled=false;scene.add(windLines);
+  const NL=60;leafDat=[];
+  for(let i=0;i<NL;i++)leafDat.push(spawnLeaf());
+  leafGeo=new THREE.BufferGeometry();leafGeo.setAttribute("position",new THREE.BufferAttribute(new Float32Array(NL*3),3));
+  leafPts=new THREE.Points(leafGeo,new THREE.PointsMaterial({color:0x86935a,size:0.22,transparent:true,opacity:0}));
+  leafPts.frustumCulled=false;scene.add(leafPts);
+}
+function windLift(x,z,y){   /* streamlines rise to clear the hip roof */
+  const hcx=offX+houseScale*(DESIGN.minX+DESIGN.w/2),hcz=offZ+houseScale*(DESIGN.minZ+DESIGN.d/2);
+  const hw=houseScale*DESIGN.w*0.72,hd=houseScale*DESIGN.d*0.72,ridge=ROOF_G?ROOF_G.rY*houseScale:4;
+  const dx=(x-hcx)/hw,dz=(z-hcz)/hd,r2=dx*dx+dz*dz;
+  if(r2>=1||y>ridge+1.2)return y;
+  return Math.max(y,y+(ridge+0.9-y)*Math.pow(1-r2,0.7));
+}
+function updateWindFX(now){
+  if(!windLines)return;
+  const vis=windStrength>0.45,op=clamp((windStrength-0.4)*0.85,0,0.8);
+  windLines.visible=vis;leafPts.visible=vis;
+  awnings.forEach((a,i)=>{a.group.rotation.x=(windStrength>0.4&&awningExt>0.08)?Math.sin(now*(6+i*1.7))*0.05*windStrength*awningExt:0;});
+  if(!vis)return;
+  windLines.material.opacity=op;leafPts.material.opacity=Math.min(0.9,op+0.15);
+  const p=windGeo2.attributes.position.array,g=windStrength;
+  for(let i=0;i<windDat2.length;i++){const d=windDat2[i];
+    d.x+=windDir[0]*d.sp*g;d.z+=windDir[2]*d.sp*g;
+    if(d.x<WC.x-48||d.x>WC.x+48||d.z<WC.z-48||d.z>WC.z+48){Object.assign(d,spawnStreak());d.x=WC.x+46;}   /* respawn upwind */
+    const yb=d.y+Math.sin(now*2+i)*0.15,y1=windLift(d.x,d.z,yb);
+    const tx=d.x-windDir[0]*d.ln,tz=d.z-windDir[2]*d.ln,y2=windLift(tx,tz,yb);
+    p[i*6]=d.x;p[i*6+1]=y1;p[i*6+2]=d.z;p[i*6+3]=tx;p[i*6+4]=y2;p[i*6+5]=tz;}
+  windGeo2.attributes.position.needsUpdate=true;
+  const lp=leafGeo.attributes.position.array;
+  for(let i=0;i<leafDat.length;i++){const d=leafDat[i];
+    d.x+=windDir[0]*d.sp*g;d.z+=windDir[2]*d.sp*g;d.ph+=0.1;
+    if(d.x<WC.x-42||d.x>WC.x+42||d.z<WC.z-42||d.z>WC.z+42){Object.assign(d,spawnLeaf());d.x=WC.x+40;}
+    lp[i*3]=d.x;lp[i*3+1]=windLift(d.x,d.z,d.y+Math.sin(d.ph)*0.5+Math.sin(now*3+i)*0.2);lp[i*3+2]=d.z;}
+  leafGeo.attributes.position.needsUpdate=true;
+}
 /* ---- water: runoff on the roof planes, downspout streams, rising water, wet floors ---- */
 function buildWaterFittings(){
   const g=new THREE.Group();downspoutJets.length=0;splashes.length=0;
@@ -1068,7 +1114,9 @@ function setWeather(w){
   weather=w;
   document.querySelectorAll("[data-wx]").forEach(b=>b.classList.toggle("on",b.dataset.wx===w));
   const note=document.getElementById("wxNote");if(note)note.textContent=WX_NOTE[w]||"";
-  buildRain();buildRunoff();setSunByHour(sunHour);
+  buildRain();buildRunoff();
+  if((WEATHER[w].wind||0)>0.8&&awningTarget>0.05){awningTarget=0;syncAwnBtn();toast("Typhoon wind — awnings auto-retracted");}
+  setSunByHour(sunHour);
 }
 const WX_NOTE={
   clear:"Calm and clear.",
@@ -1079,7 +1127,9 @@ const WX_NOTE={
   thunder:"Thunderstorm — heavy rain with lightning. Surge protection & a backup line."
 };
 function updateWind(now){
-  const target=WEATHER[weather].wind;windStrength+=(target-windStrength)*0.05;
+  const base=WEATHER[weather].wind;
+  const target=base*(base>0.5?(1+Math.sin(now*0.8)*0.28+Math.sin(now*2.1)*0.16):1);   /* gusts */
+  windStrength+=(target-windStrength)*0.08;
   for(const t of treeSwayers){const ph=t.userData.ph,s=windStrength;
     t.rotation.z=(Math.sin(now*1.7+ph)*0.06+Math.sin(now*3.3+ph)*0.022)*s;
     t.rotation.x=(Math.cos(now*1.4+ph)*0.04)*s;}
@@ -1219,7 +1269,6 @@ function wireUI(){
   $("#sunHour").oninput=e=>{dayAnim=false;syncPlay();setSunByHour(+e.target.value);};
   document.querySelectorAll("[data-sun]").forEach(b=>b.onclick=()=>{dayAnim=false;syncPlay();setSunByHour(+b.dataset.sun);});
   $("#sunPlay").onclick=()=>{dayAnim=!dayAnim;syncPlay();};
-  const syncAwnBtn=()=>{const f=awningTarget<0.5;$("#awnFold").textContent=f?"⇕ Unfold awnings":"⇕ Fold awnings";$("#awnFold").classList.toggle("on",f);};
   $("#awn").oninput=e=>{awningExt=awningTarget=+e.target.value/100;updateAwnings();syncAwnBtn();};
   $("#awnFold").onclick=()=>{awningTarget=awningTarget>0.5?0:1;syncAwnBtn();};
   /* weather */
@@ -1254,7 +1303,7 @@ function init(){
   sunLight.target.position.set(WC.x,0,WC.z);scene.add(sunLight);scene.add(sunLight.target);
   fillLight=new THREE.DirectionalLight(0xdfe6ff,0.2);fillLight.position.set(-20,16,16);scene.add(fillLight);
   lightningLight=new THREE.DirectionalLight(0xeaf0ff,0);lightningLight.position.set(8,46,-26);scene.add(lightningLight);
-  buildGround();
+  buildGround();buildWindFX();
   gridHelper=new THREE.GridHelper(90,90,0x9c8d72,0xbeb398);gridHelper.position.set(WC.x,0.005,WC.z);gridHelper.material.opacity=0.45;gridHelper.material.transparent=true;gridHelper.visible=false;scene.add(gridHelper);
   houseGroup=new THREE.Group();scene.add(houseGroup);
   build();
@@ -1267,7 +1316,7 @@ function animate(){requestAnimationFrame(animate);
   vw.theta+=(dst.theta-vw.theta)*0.15;vw.phi+=(dst.phi-vw.phi)*0.15;vw.radius+=(dst.radius-vw.radius)*0.15;
   if(dayAnim){sunHour+=0.03;if(sunHour>20)sunHour=5;setSunByHour(sunHour);}
   if(Math.abs(awningExt-awningTarget)>0.002){awningExt+=(awningTarget-awningExt)*0.1;updateAwnings();}
-  updateWind(now);updateRain();updateWater(now);updateLightning();updateQuake();
+  updateWind(now);updateWindFX(now);updateRain();updateWater(now);updateLightning();updateQuake();
   applyCam();
   if(quake.active){camera.position.x+=quake.cam[0];camera.position.y+=quake.cam[1];camera.position.z+=quake.cam[2];}
   const n=document.getElementById("needle");if(n)n.style.transform="rotate("+vw.theta+"rad)";
